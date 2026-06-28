@@ -755,6 +755,7 @@ console.log('🤖 AI Assistant Ready — Click robot to open');
         }
 
         function connectWs() {
+            return; // ADD THIS LINE
             if (_onlineWs && (_onlineWs.readyState === WebSocket.OPEN || _onlineWs.readyState === WebSocket.CONNECTING)) return;
             var url = getWsUrl();
             console.log('[Online] Connecting to ' + url + '...');
