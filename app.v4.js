@@ -975,37 +975,27 @@ console.log('🤖 AI Assistant Ready — Click robot to open');
         // ========================================================================
         //  AUTH HANDLERS
         // ========================================================================
-        function handleLogin(e) {
-            e.preventDefault();
+       function handleLogin(event) {
+            event.preventDefault();
+            
             var username = document.getElementById('loginUsername').value.trim();
             var password = document.getElementById('loginPassword').value.trim();
-            var btn = document.getElementById('loginBtn');
-            var errorEl = document.getElementById('loginError');
-            if (errorEl) errorEl.textContent = '';
-            if (!username || !password) {
-                if (errorEl) errorEl.textContent = 'Please enter username and password.';
-                return false;
-            }
-            btn.disabled = true;
-            btn.textContent = 'Signing in…';
+            
             Auth.login(username, password).then(function(user) {
-                btn.disabled = false;
-                btn.textContent = 'Sign In';
                 if (user) {
-                    if (user.firstLogin) {
-                        showForcePasswordChange(user);
-                    } else {
-                        proceedAfterLogin(user);
-                    }
+                    document.getElementById('loginScreen').style.display = 'none';
+                    document.getElementById('appContainer').style.display = 'flex';
+                    updateUserInterface(user);
+                    
+                    if (typeof refreshAll === 'function') refreshAll();
+                    if (typeof applyOwnerPermissions === 'function') applyOwnerPermissions();
+                    
+                    console.log('✅ Login successful as', user.role);
                 } else {
-                    if (errorEl) errorEl.textContent = 'Invalid username or password.';
+                    document.getElementById('loginError').textContent = 'Invalid username or password';
+                    document.getElementById('loginError').style.display = 'block';
                 }
-            }).catch(function() {
-                btn.disabled = false;
-                btn.textContent = 'Sign In';
-                if (errorEl) errorEl.textContent = 'Login failed. Server unreachable.';
             });
-            return false;
         }
 
         function updateUserUI(user) {
