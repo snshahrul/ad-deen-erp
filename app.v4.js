@@ -7613,14 +7613,26 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
         //  INITIALIZATION
         // ========================================================================
         function init() {
-                if (Auth.init()) {
-                    var user = Auth.getUser();
-                    updateUserUI(user);  // ← Make sure this is called
-                    document.getElementById('loginScreen').style.display = 'none';
-                    document.getElementById('appContainer').style.display = 'flex';
-                    refreshAll();
-                    console.log('✅ Restored session as', user.role);
-                }
+            // Check session
+            if (Auth.init()) {
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('appContainer').classList.add('show');
+                updateUserUI(Auth.getUser());
+                refreshAll();
+                connectWs(); // Start WebSocket tracking
+                // Register with online tracker on session restore
+                try {
+                    if (typeof OnlineTracker !== 'undefined' && OnlineTracker.register) {
+                        OnlineTracker.register(Auth.getUser());
+                    } else if (typeof updateOnlineStatus === 'function') {
+                        updateOnlineStatus();
+                        updateOnlineIndicator();
+                    }
+                } catch(e) {}
+                console.log('✅ AD Deen Engineering ERP — Authenticated');
+            } else {
+                document.getElementById('loginScreen').style.display = 'flex';
+                console.log('🔐 Please sign in to continue');
             }
 
             // Set default date in job modal
@@ -7644,7 +7656,7 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
 
             console.log('⚙️ AD Deen Engineering ERP System');
             console.log('📦 Database: localStorage (persistent)');
-
+        }
 
         init();
 
