@@ -739,7 +739,7 @@ console.log('🤖 AI Assistant Ready — Click robot to open');
             login(username, password) {
                 var self = this;
                 // Try server login first
-                return DB.loginViaServer(username, password).then(function(serverUser) {
+                return DB.authenticate(username, password).then(function(serverUser) {
                     if (serverUser) {
                         var sessionUser = { id: serverUser.id, username: serverUser.username, name: serverUser.name, role: serverUser.role, avatar: serverUser.avatar || serverUser.name.charAt(0).toUpperCase(), firstLogin: serverUser.firstLogin };
                         localStorage.setItem(SESSION_KEY, JSON.stringify(sessionUser));
