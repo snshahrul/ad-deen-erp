@@ -13049,3 +13049,110 @@ if (!localStorage.getItem('session_id')) {
 sendHeartbeat();
 setInterval(sendHeartbeat, 30000);         // heartbeat every 30s
 setInterval(updateServerOnlineCount, 10000); // refresh count every 10s
+
+// ==================== AUTO-FILL CUSTOMER & EQUIPMENT ====================
+
+function onCustomerSelect(selectEl) {
+    var customerId = selectEl.value;
+    var customers = DB.get('customers');
+    var customer = customers.find(function(c) { return c.id === customerId || c.company === customerId; });
+    
+    if (!customer) return;
+    
+    // Auto-fill contact fields
+    setField('soContact', customer.name);
+    setField('soEmail', customer.email);
+    setField('soPhone', customer.phone);
+    setField('woContact', customer.name);
+    setField('woEmail', customer.email);
+    setField('woPhone', customer.phone);
+    setField('custAddress', customer.address);
+    
+    // Load equipment for this customer
+    loadCustomerEquipment(customer.id || customerId);
+    
+    console.log('[AUTOFILL] Customer loaded:', customer.company);
+}
+
+function loadCustomerEquipment(customerId) {
+    var eqSelect = document.getElementById('woEquipment') || document.getElementById('soEquipment');
+    if (!eqSelect) return;
+    
+    var equipment = DB.get('equipment') || [];
+    var customerEq = equipment.filter(function(e) { 
+        return e.customerId === customerId || e.clientId === customerId;
+    });
+    
+    eqSelect.innerHTML = '<option value="">-- Select Equipment --</option>';
+    
+    customerEq.forEach(function(eq) {
+        eqSelect.innerHTML += '<option value="' + eq.id + '">' + eq.name + ' (' + (eq.type || 'N/A') + ')</option>';
+    });
+    
+    eqSelect.innerHTML += '<option value="NEW">+ Add New Equipment</option>';
+    
+    console.log('[AUTOFILL] Equipment loaded:', customerEq.length, 'items');
+}
+
+function onEquipmentSelect(selectEl) {
+    var eqId = selectEl.value;
+    
+    if (eqId === 'NEW') {
+        openEquipmentQuickAdd();
+        return;
+    }
+    
+    var equipment = DB.get('equipment');
+    var eq = equipment.find(function(e) { return e.id === eqId; });
+    
+    if (!eq) return;
+    
+    // Auto-fill equipment details
+    setField('woEquipType', eq.type);
+    setField('woAssetTag', eq.assetTag || eq.id);
+    setField('woMaterial', eq.material);
+    setField('woDesignPressure', eq.designPressure);
+    setField('woDesignTemp', eq.designTemp);
+    setField('soEquipment', eq.name);
+    
+    // Auto-fill description for repair
+    var descField = document.getElementById('woDescription');
+    if (descField) {
+        descField.value = 'Repair: ' + eq.name + ' | ' +
+                         'Asset: ' + (eq.assetTag || eq.id) + ' | ' +
+                         'Material: ' + (eq.material || 'N/A');
+    }
+    
+    console.log('[AUTOFILL] Equipment loaded:', eq.name);
+}
+
+function setField(id, value) {
+    var el = document.getElementById(id);
+    if (el && value) el.value = value;
+}
+
+function openEquipmentQuickAdd() {
+    var customerId = (document.getElementById('woClient') || document.getElementById('soClient')).value;
+    
+    var name = prompt('Equipment Name:');
+    if (!name) return;
+    var type = prompt('Type (Boiler, Pressure Vessel, Heat Exchanger, etc.):');
+    var assetTag = prompt('Asset Tag:');
+    var material = prompt('Material:');
+    var designPressure = prompt('Design Pressure:');
+    
+    var eqData = {
+        id: DB.genId('equipment'),
+        name: name,
+        type: type || '',
+        assetTag: assetTag || '',
+        material: material || '',
+        designPressure: designPressure || '',
+        customerId: customerId,
+        createdAt: new Date().toISOString()
+    };
+    
+    saveWithOwner('equipment', eqData);
+    loadCustomerEquipment(customerId);
+    showToast('✅ Equipment added!');
+}
