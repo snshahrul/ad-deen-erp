@@ -684,7 +684,7 @@ console.log('🤖 AI Assistant Ready — Click robot to open');
             data.lastModifiedAt = new Date().toISOString();
             if (!data.assignedTo) { data.assignedTo = user.username; data.assignedToName = user.name; }
             
-            var saved = saveWithOwner(store, data);
+            var saved = DB.add(store, data);
             showToast('✅ Saved as ' + user.name);
             return saved;
         }
