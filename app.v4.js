@@ -1097,9 +1097,8 @@ console.log('🤖 AI Assistant Ready — Click robot to open');
         // ========================================================================
         //  AUTH HANDLERS
         // ========================================================================
-       function handleLogin(event) {
+        function handleLogin(event) {
             event.preventDefault();
-            
             var username = document.getElementById('loginUsername').value.trim();
             var password = document.getElementById('loginPassword').value.trim();
             
@@ -1107,11 +1106,11 @@ console.log('🤖 AI Assistant Ready — Click robot to open');
                 if (user) {
                     document.getElementById('loginScreen').style.display = 'none';
                     document.getElementById('appContainer').style.display = 'flex';
-                    updateUserInterface(user);
+                    
+                    // UPDATE UI WITH LOGGED-IN USER
+                    updateUserUI(user);
                     
                     if (typeof refreshAll === 'function') refreshAll();
-                    if (typeof applyOwnerPermissions === 'function') applyOwnerPermissions();
-                    
                     console.log('✅ Login successful as', user.role);
                 } else {
                     document.getElementById('loginError').textContent = 'Invalid username or password';
@@ -1121,20 +1120,22 @@ console.log('🤖 AI Assistant Ready — Click robot to open');
         }
 
         function updateUserUI(user) {
-            const initial = user.avatar || user.name.charAt(0).toUpperCase();
-            ['headerAvatar', 'sidebarAvatar'].forEach(id => {
-                document.getElementById(id).textContent = initial;
-            });
-            ['headerUserName', 'sidebarUserName'].forEach(id => {
-                document.getElementById(id).textContent = user.name;
-            });
-            ['headerUserRole', 'sidebarUserRole'].forEach(id => {
-                document.getElementById(id).textContent = user.role;
-            });
-            // Set role-based class on container for CSS gating
-            var container = document.getElementById('appContainer');
-            container.classList.remove('role-Administrator', 'role-Staff');
-            container.classList.add('role-' + user.role);
+            if (!user) return;
+            
+            // Update header
+            var headerName = document.getElementById('headerUserName');
+            var headerRole = document.getElementById('headerUserRole');
+            var headerAvatar = document.getElementById('headerAvatar');
+            var sidebarName = document.getElementById('sidebarUserName');
+            var sidebarRole = document.getElementById('sidebarUserRole');
+            var sidebarAvatar = document.getElementById('sidebarAvatar');
+            
+            if (headerName) headerName.textContent = user.name || user.username;
+            if (headerRole) headerRole.textContent = user.role || 'Staff';
+            if (headerAvatar) headerAvatar.textContent = (user.name || user.username).charAt(0).toUpperCase();
+            if (sidebarName) sidebarName.textContent = user.name || user.username;
+            if (sidebarRole) sidebarRole.textContent = user.role || 'Staff';
+            if (sidebarAvatar) sidebarAvatar.textContent = (user.name || user.username).charAt(0).toUpperCase();
         }
 
         function proceedAfterLogin(user) {
@@ -7612,26 +7613,14 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
         //  INITIALIZATION
         // ========================================================================
         function init() {
-            // Check session
-            if (Auth.init()) {
-                document.getElementById('loginScreen').style.display = 'none';
-                document.getElementById('appContainer').classList.add('show');
-                updateUserUI(Auth.getUser());
-                refreshAll();
-                connectWs(); // Start WebSocket tracking
-                // Register with online tracker on session restore
-                try {
-                    if (typeof OnlineTracker !== 'undefined' && OnlineTracker.register) {
-                        OnlineTracker.register(Auth.getUser());
-                    } else if (typeof updateOnlineStatus === 'function') {
-                        updateOnlineStatus();
-                        updateOnlineIndicator();
-                    }
-                } catch(e) {}
-                console.log('✅ AD Deen Engineering ERP — Authenticated');
-            } else {
-                document.getElementById('loginScreen').style.display = 'flex';
-                console.log('🔐 Please sign in to continue');
+                if (Auth.init()) {
+                    var user = Auth.getUser();
+                    updateUserUI(user);  // ← Make sure this is called
+                    document.getElementById('loginScreen').style.display = 'none';
+                    document.getElementById('appContainer').style.display = 'flex';
+                    refreshAll();
+                    console.log('✅ Restored session as', user.role);
+                }
             }
 
             // Set default date in job modal
@@ -7655,7 +7644,7 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
 
             console.log('⚙️ AD Deen Engineering ERP System');
             console.log('📦 Database: localStorage (persistent)');
-        }
+
 
         init();
 
