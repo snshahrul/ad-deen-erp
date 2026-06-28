@@ -2638,6 +2638,18 @@ document.addEventListener('click', function(event) {
                     <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:var(--radius-sm);padding:16px;margin-bottom:16px;">
                         <strong style="font-size:14px;display:block;margin-bottom:12px;">🔧 Pressure Equipment Repair</strong>
                         <div class="form-row-2">
+                            <div class="form-group">
+                                <label class="form-label">Select Existing Equipment</label>
+                                <select class="form-control" id="soRepEquipmentSelect" onchange="autoFillRepairEquipment(this)" style="background:#fef3c7;font-weight:600;">
+                                    <option value="">-- Select Customer First --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" style="color:var(--text-muted);">or fill manually below</label>
+                                <span style="font-size:11px;color:var(--text-muted);">↓ Use fields below for new equipment</span>
+                            </div>
+                        </div>
+                        <div class="form-row-2">
                             <div class="form-group"><label class="form-label">Equipment Name *</label><input type="text" class="form-control" id="soRepEquipName" placeholder="Equipment name"></div>
                             <div class="form-group"><label class="form-label">Equipment Registration No.</label><input type="text" class="form-control" id="soRepRegNo" placeholder="e.g. DOSH/JKKP reg no"></div>
                         </div>

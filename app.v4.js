@@ -13156,3 +13156,69 @@ function openEquipmentQuickAdd() {
     loadCustomerEquipment(customerId);
     showToast('✅ Equipment added!');
 }
+
+// ==================== AUTO-FILL REPAIR EQUIPMENT ====================
+
+// Load equipment dropdown when customer is selected
+var originalOnCustomerSelect = onCustomerSelect;
+onCustomerSelect = function(selectEl) {
+    // Call original function
+    if (typeof originalOnCustomerSelect === 'function') {
+        originalOnCustomerSelect(selectEl);
+    }
+    
+    var customerId = selectEl.value;
+    loadRepairEquipmentDropdown(customerId);
+};
+
+function loadRepairEquipmentDropdown(customerId) {
+    var eqSelect = document.getElementById('soRepEquipmentSelect');
+    if (!eqSelect) return;
+    
+    var equipment = DB.get('equipment') || [];
+    var customerEq = equipment.filter(function(e) { 
+        return e.customerId === customerId || e.clientId === customerId;
+    });
+    
+    eqSelect.innerHTML = '<option value="">-- Select Equipment --</option>';
+    
+    customerEq.forEach(function(eq) {
+        eqSelect.innerHTML += '<option value="' + eq.id + '">' + 
+            eq.name + ' | ' + (eq.type || 'N/A') + ' | ' + (eq.assetTag || eq.id) + '</option>';
+    });
+    
+    if (customerEq.length === 0) {
+        eqSelect.innerHTML += '<option value="">No equipment found for this customer</option>';
+    }
+    
+    console.log('[REPAIR] Loaded ' + customerEq.length + ' equipment for customer');
+}
+
+function autoFillRepairEquipment(selectEl) {
+    var eqId = selectEl.value;
+    if (!eqId) return;
+    
+    var equipment = DB.get('equipment');
+    var eq = equipment.find(function(e) { return e.id === eqId; });
+    
+    if (!eq) return;
+    
+    // Auto-fill all repair fields
+    document.getElementById('soRepEquipName').value = eq.name || '';
+    document.getElementById('soRepRegNo').value = eq.regNo || eq.doshRegNo || '';
+    document.getElementById('soRepSerial').value = eq.serialNo || eq.assetTag || '';
+    document.getElementById('soRepYearMfg').value = eq.yearMfg || '';
+    document.getElementById('soRepDesignP').value = eq.designPressure || '';
+    document.getElementById('soRepDesignT').value = eq.designTemp || '';
+    document.getElementById('soRepScope').value = 'Repair for ' + eq.name + '\nMaterial: ' + (eq.material || 'N/A') + '\nAsset: ' + (eq.assetTag || eq.id);
+    
+    console.log('[REPAIR] Auto-filled equipment:', eq.name);
+    
+    // Check relevant test requirements
+    if (eq.testHydro) document.getElementById('soRepTestHydro').checked = true;
+    if (eq.testBubble) document.getElementById('soRepTestBubble').checked = true;
+    if (eq.testDPT) document.getElementById('soRepTestDPT').checked = true;
+    if (eq.testUT) document.getElementById('soRepTestUT').checked = true;
+    
+    showToast('✅ Equipment details auto-filled!');
+}
