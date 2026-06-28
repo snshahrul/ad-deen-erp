@@ -1,0 +1,407 @@
+{
+  "users": [
+    {
+      "id": "U1",
+      "username": "admin",
+      "password": "admin123",
+      "name": "Shahrul Azmi Salim Shah",
+      "role": "Administrator",
+      "avatar": "SA",
+      "email": "design.addeen@sh-shahrul.com",
+      "phone": "+601139794166"
+    },
+    {
+      "id": "U2",
+      "username": "user",
+      "password": "user123",
+      "name": "Sollahuddin Ilias",
+      "role": "Manager",
+      "avatar": "SI",
+      "firstLogin": true,
+      "email": "manager.addeen@sn-shahrul.com",
+      "phone": "+60193838699"
+    },
+    {
+      "id": "U3",
+      "username": "yazid",
+      "password": "yazid123",
+      "name": "Mohd Yazid",
+      "role": "Engineer",
+      "avatar": "MY",
+      "firstLogin": true
+    }
+  ],
+  "workOrders": [],
+  "serviceCalls": [],
+  "pmContracts": [],
+  "inspections": [],
+  "inventory": [
+    {
+      "code": "TUBE-2IN-SMLS",
+      "desc": "Boiler Tube 2\" OD Seamless SA-178",
+      "lot": "LOT-2026-A001",
+      "location": "WH-A-01",
+      "qty": 45,
+      "min": 20,
+      "unit": "meters",
+      "status": "In Stock",
+      "woLink": "WO-2026-0001",
+      "createdBy": {
+        "name": "System"
+      },
+      "createdAt": "2026-01-01T00:00:00Z"
+    },
+    {
+      "code": "ELEC-E7018-3.2",
+      "desc": "Welding Electrode E7018 3.2mm",
+      "lot": "LOT-2026-B001",
+      "location": "WH-B-03",
+      "qty": 8,
+      "min": 50,
+      "unit": "kg",
+      "status": "Low Stock",
+      "woLink": "WO-2026-0001",
+      "createdBy": {
+        "name": "System"
+      },
+      "createdAt": "2026-01-01T00:00:00Z"
+    },
+    {
+      "code": "GASK-6IN-SPIR",
+      "desc": "Spiral Wound Gasket 6\" 150#",
+      "lot": "LOT-2026-C001",
+      "location": "WH-A-02",
+      "qty": 12,
+      "min": 10,
+      "unit": "pcs",
+      "status": "In Stock",
+      "createdBy": {
+        "name": "System"
+      },
+      "createdAt": "2026-01-01T00:00:00Z"
+    },
+    {
+      "code": "REFR-CAST-25KG",
+      "desc": "Refractory Castable 25kg/bag",
+      "lot": "LOT-2026-D001",
+      "location": "WH-B-02",
+      "qty": 15,
+      "min": 10,
+      "unit": "bags",
+      "status": "In Stock",
+      "createdBy": {
+        "name": "System"
+      },
+      "createdAt": "2026-01-01T00:00:00Z"
+    }
+  ],
+  "assets": [
+    {
+      "id": "EQ-001",
+      "name": "Welding Machine Miller 350",
+      "lastService": "2026-01-05",
+      "nextDue": "2026-07-05",
+      "status": "Operational",
+      "createdBy": {
+        "name": "System"
+      },
+      "createdAt": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "EQ-002",
+      "name": "Hydrostatic Test Pump",
+      "lastService": "2025-12-15",
+      "nextDue": "2026-03-15",
+      "status": "Due Soon",
+      "createdBy": {
+        "name": "System"
+      },
+      "createdAt": "2026-01-01T00:00:00Z"
+    }
+  ],
+  "customers": [
+    {
+      "id": "CUST-001",
+      "name": "Petronas Refinery",
+      "contact": "Ahmad Faizal",
+      "email": "afaizal@petronas.com.my",
+      "phone": "+60-3-1234-5678",
+      "address": "Kerteh, Terengganu",
+      "company": "Petronas",
+      "type": "Corporate",
+      "status": "Active",
+      "since": "2019-06-15",
+      "createdBy": {
+        "name": "System"
+      },
+      "createdAt": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "CUST-002",
+      "name": "Shell Malaysia",
+      "contact": "Linda Tan",
+      "email": "linda.tan@shell.com",
+      "phone": "+60-3-8765-4321",
+      "address": "Port Dickson, Negeri Sembilan",
+      "company": "Shell",
+      "type": "Corporate",
+      "status": "Active",
+      "since": "2020-03-22",
+      "createdBy": {
+        "name": "System"
+      },
+      "createdAt": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "CUST-003",
+      "name": "TNB Power Generation",
+      "contact": "Razak Omar",
+      "email": "razak.omar@tnb.com.my",
+      "phone": "+60-5-2345-6789",
+      "address": "Manjung, Perak",
+      "company": "Tenaga Nasional",
+      "type": "Corporate",
+      "status": "Active",
+      "since": "2018-11-01",
+      "createdBy": {
+        "name": "System"
+      },
+      "createdAt": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "CUST-004",
+      "name": "Malakoff Corporation",
+      "contact": "Siti Nurhaliza",
+      "email": "siti@malakoff.com.my",
+      "phone": "+60-5-3456-7890",
+      "address": "Lumut, Perak",
+      "company": "Malakoff",
+      "type": "Corporate",
+      "status": "Active",
+      "since": "2021-01-10",
+      "createdBy": {
+        "name": "System"
+      },
+      "createdAt": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "CUST-005",
+      "name": "Petron Chemical",
+      "contact": "Michael Wong",
+      "email": "michael.wong@petronchem.com",
+      "phone": "+60-9-4567-8901",
+      "address": "Gebeng, Pahang",
+      "company": "Petron Chemical Group",
+      "type": "Corporate",
+      "status": "Active",
+      "since": "2022-07-05",
+      "createdBy": {
+        "name": "System"
+      },
+      "createdAt": "2026-01-01T00:00:00Z"
+    }
+  ],
+  "fabOrders": [],
+  "salesOrders": [],
+  "clientPOs": [],
+  "quotations": [
+    {
+      "customer": "Petronas",
+      "contact": "Petronas Refinery",
+      "email": "afaizal@petronas.com.my",
+      "phone": "+60-3-1234-5678",
+      "subject": "Test Quotation - Final Test",
+      "description": "Testing the quotation creation",
+      "items": [
+        {
+          "description": "Steel Pipes",
+          "qty": 5,
+          "unitPrice": 250
+        }
+      ],
+      "subtotal": 1250,
+      "taxPercent": 0,
+      "taxAmount": 0,
+      "total": 1250,
+      "status": "Draft",
+      "validUntil": "",
+      "notes": "",
+      "id": "QT-2026-0003",
+      "createdAt": "2026-06-28",
+      "createdBy": {
+        "id": "U1",
+        "name": "Shahrul Azmi Salim Shah",
+        "username": "admin"
+      },
+      "updatedBy": {
+        "id": "U1",
+        "name": "Shahrul Azmi Salim Shah",
+        "username": "admin"
+      },
+      "updatedAt": "2026-06-28T14:25:20.508Z"
+    },
+    {
+      "customer": "Petronas",
+      "contact": "Petronas Refinery",
+      "email": "afaizal@petronas.com.my",
+      "phone": "+60-3-1234-5678",
+      "subject": "Test Quotation - Browser Test",
+      "description": "Testing automation for quotation creation.",
+      "items": [
+        {
+          "description": "Steel Pipes",
+          "qty": 5,
+          "unitPrice": 250
+        }
+      ],
+      "subtotal": 1250,
+      "taxPercent": 0,
+      "taxAmount": 0,
+      "total": 1250,
+      "status": "Draft",
+      "validUntil": "",
+      "notes": "",
+      "id": "QT-2026-0002",
+      "createdAt": "2026-06-28",
+      "createdBy": {
+        "id": "U1",
+        "name": "Shahrul Azmi Salim Shah",
+        "username": "admin"
+      },
+      "updatedBy": {
+        "id": "U1",
+        "name": "Shahrul Azmi Salim Shah",
+        "username": "admin"
+      },
+      "updatedAt": "2026-06-28T14:14:37.614Z"
+    },
+    {
+      "customer": "Petronas",
+      "contact": "Petronas Refinery",
+      "email": "afaizal@petronas.com.my",
+      "phone": "+60-3-1234-5678",
+      "subject": "Test Quotation via Browser",
+      "description": "This is a test description for the quotation.",
+      "items": [
+        {
+          "description": "Test Item",
+          "qty": 1,
+          "unitPrice": 100
+        }
+      ],
+      "subtotal": 100,
+      "taxPercent": 0,
+      "taxAmount": 0,
+      "total": 100,
+      "status": "Draft",
+      "validUntil": "",
+      "notes": "",
+      "id": "QT-2026-0001",
+      "createdAt": "2026-06-28",
+      "createdBy": {
+        "id": "U1",
+        "name": "Shahrul Azmi Salim Shah",
+        "username": "admin"
+      },
+      "updatedBy": {
+        "id": "U1",
+        "name": "Shahrul Azmi Salim Shah",
+        "username": "admin"
+      },
+      "updatedAt": "2026-06-28T14:04:27.230Z"
+    }
+  ],
+  "invoices": [],
+  "accountingEntries": [],
+  "purchaseRequisitions": [],
+  "purchaseOrders": [],
+  "documents": [
+    {
+      "id": "DOC-0001",
+      "name": "Air Receiver GA Drawing Rev 4",
+      "type": "Drawing",
+      "category": "ASME",
+      "version": "4.0",
+      "description": "General arrangement drawing for 2000L air receiver",
+      "tags": "ASME, UV-Stamp, Pressure Vessel",
+      "status": "Approved",
+      "createdAt": "2026-01-15T08:00:00Z",
+      "createdBy": {
+        "name": "System"
+      }
+    },
+    {
+      "id": "DOC-0002",
+      "name": "WPS SMAW 6G Position",
+      "type": "WPS",
+      "category": "ASME IX",
+      "version": "2.1",
+      "description": "Welding Procedure Specification for SMAW 6G position",
+      "tags": "WPS, SMAW, 6G, Carbon Steel",
+      "status": "Approved",
+      "createdAt": "2025-11-10T09:00:00Z",
+      "createdBy": {
+        "name": "System"
+      }
+    },
+    {
+      "id": "DOC-0003",
+      "name": "Material Certificate SA516 Gr.70",
+      "type": "Certificate",
+      "category": "Mill Certificate",
+      "version": "1.0",
+      "description": "Material test certificate for SA516 Grade 70 plate",
+      "tags": "MTC, SA516, Carbon Steel",
+      "status": "Final",
+      "createdAt": "2026-01-20T11:00:00Z",
+      "createdBy": {
+        "name": "System"
+      }
+    },
+    {
+      "id": "DOC-0004",
+      "name": "Hydrotest Procedure",
+      "type": "Report",
+      "category": "QA/QC",
+      "version": "1.0",
+      "description": "Hydrostatic test procedure and checklist",
+      "tags": "Hydrotest, QA, Procedure",
+      "status": "Final",
+      "createdAt": "2026-02-01T07:30:00Z",
+      "createdBy": {
+        "name": "System"
+      }
+    },
+    {
+      "id": "DOC-0005",
+      "name": "NDE Examination Report",
+      "type": "Report",
+      "category": "NDE",
+      "version": "1.0",
+      "description": "NDE examination results for weld joints",
+      "tags": "NDE, RT, UT, MT",
+      "status": "Approved",
+      "createdAt": "2026-03-10T13:00:00Z",
+      "createdBy": {
+        "name": "System"
+      }
+    },
+    {
+      "id": "DOC-0006",
+      "name": "Petronas Vendor Registration",
+      "type": "Other",
+      "category": "Registration",
+      "version": "3.0",
+      "description": "Vendor registration certificate with Petronas",
+      "tags": "Petronas, Vendor, Approved",
+      "status": "Approved",
+      "createdAt": "2025-06-01T08:00:00Z",
+      "createdBy": {
+        "name": "System"
+      }
+    }
+  ],
+  "equipment": [],
+  "jobCosting": [],
+  "jobProgress": []
+}

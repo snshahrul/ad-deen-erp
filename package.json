@@ -1,0 +1,13 @@
+{
+  "name": "ad-deen-erp",
+  "version": "1.0.0",
+  "description": "AD Deen Engineering ERP System",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "pg": "^8.13.0",
+    "ws": "^8.16.0"
+  }
+}
