@@ -467,8 +467,10 @@ console.log('🤖 AI Assistant Ready — Click robot to open');
                     this._saveBackup();
                     console.log('[DB] Synced from server');
                 } else {
+                    
+            }       
                     // Server offline — try to seed local defaults if empty
-            }
+            
                     if (!this._cache.users || this._cache.users.length === 0) {
                         this._cache.users = [
                             { id: 'U1', username: 'admin', password: 'admin123', name: 'Shahrul Azmi Salim Shah', role: 'Administrator', avatar: 'SA', email: 'design.addeen@sh-shahrul.com', phone: '+601139794166' },
@@ -609,7 +611,127 @@ console.log('🤖 AI Assistant Ready — Click robot to open');
                 return this.get(store);
             }
         }
+        // ==================== OWNER-BASED PERMISSION SYSTEM ====================
 
+        function getCurrentUser() {
+            try {
+                var session = JSON.parse(localStorage.getItem('ad_deen_erp_session') || '{}');
+                if (session.username) {
+                    return session;
+                }
+            } catch(e) {}
+            return null;
+        }
+
+        function isOwner(record) {
+            var user = getCurrentUser();
+            if (!user || !record) return false;
+            return record.createdBy === user.username ||
+                record.createdBy === user.id ||
+                record.assignedTo === user.username ||
+                record.assignedTo === user.id ||
+                record.raisedBy === user.username ||
+                record.requestedBy === user.username;
+        }
+
+        function isAdmin() {
+            var user = getCurrentUser();
+            return user && user.role === 'Administrator';
+        }
+
+        function isManager() {
+            var user = getCurrentUser();
+            return user && (user.role === 'Administrator' || user.role === 'Manager');
+        }
+
+        function canEdit(record) {
+            if (!record) return false;
+            if (isAdmin() || isManager()) return true;
+            return isOwner(record);
+        }
+
+        function canDeleteRecord(record) {
+            if (!record) return false;
+            if (isAdmin()) return true;
+            if (isOwner(record)) {
+                var status = record.status || '';
+                if (status === 'Approved' || status === 'Closed' || status === 'Completed') return false;
+                return true;
+            }
+            return false;
+        }
+
+        function canChangeStatus(record) {
+            if (!record) return false;
+            if (isAdmin() || isManager()) return true;
+            return isOwner(record);
+        }
+
+        function canAssign() {
+            return isAdmin() || isManager();
+        }
+
+        // ==================== SAVE WITH OWNERSHIP ====================
+
+        function saveWithOwner(store, data) {
+            var user = getCurrentUser();
+            if (!user) { showToast('🔒 Please login first'); return null; }
+            
+            data.createdBy = user.username;
+            data.createdByName = user.name;
+            data.createdAt = new Date().toISOString();
+            data.lastModifiedBy = user.username;
+            data.lastModifiedAt = new Date().toISOString();
+            if (!data.assignedTo) { data.assignedTo = user.username; data.assignedToName = user.name; }
+            
+            var saved = saveWithOwner(store, data);
+            showToast('✅ Saved as ' + user.name);
+            return saved;
+        }
+
+        function updateWithPermission(store, id, updates) {
+            var record = DB.getById(store, id);
+            if (!record) { showToast('❌ Record not found'); return false; }
+            if (!canEdit(record)) { showToast('🔒 You can only edit your own records'); return false; }
+            
+            var user = getCurrentUser();
+            updates.lastModifiedBy = user.username;
+            updates.lastModifiedAt = new Date().toISOString();
+            DB.update(store, id, updates);
+            showToast('✅ Updated');
+            return true;
+        }
+
+        function deleteWithPermission(store, id) {
+            var record = DB.getById(store, id);
+            if (!record) { showToast('❌ Record not found'); return false; }
+            if (!canDeleteRecord(record)) { showToast('🔒 Cannot delete this record'); return false; }
+            if (!confirm('Delete this record? This cannot be undone.')) return false;
+            
+            DB.delete(store, id);
+            showToast('🗑️ Deleted');
+            return true;
+        }
+
+        // ==================== ACTION BUTTONS ====================
+
+        function getActionButtons(record, store) {
+            var id = record.id || record.number || '';
+            var buttons = '';
+            if (canEdit(record)) { buttons += '<button class="btn btn-xs btn-info" onclick="editRecord(\'' + store + '\',\'' + id + '\')" title="Edit">✏️</button> '; }
+            else { buttons += '<button class="btn btn-xs btn-ghost" disabled title="Only owner can edit">🔒</button> '; }
+            if (canDeleteRecord(record)) { buttons += '<button class="btn btn-xs btn-danger" onclick="deleteWithPermission(\'' + store + '\',\'' + id + '\')" title="Delete">🗑️</button> '; }
+            return buttons;
+        }
+
+        // ==================== LOGIN CHECK ====================
+
+        function checkLoginAndRedirect() {
+            if (!getCurrentUser()) {
+                document.getElementById('loginScreen').style.display = 'flex';
+                document.getElementById('appContainer').style.display = 'none';
+            }
+        }
         // ==================== ONLINE TRACKER ====================
         // ==================== ONLINE USER TRACKING ====================
 
@@ -1080,7 +1202,7 @@ console.log('🤖 AI Assistant Ready — Click robot to open');
 
             u.password = newPw;
             u.firstLogin = false;
-            DB.add('users', u);
+            saveWithOwner('users', u);
 
             var modal = document.getElementById('forcePwModal');
             modal.style.display = 'none';
@@ -2184,7 +2306,7 @@ window.addEventListener('DOMContentLoaded', function() {
                 documents: ['Air_Receiver_GA_Drawing_Rev3.pdf', 'WPS_SMAW_6G.pdf', 'Material_Certificate_SA516_70.pdf'].map(n => ({ name: n, uploaded: true })),
                 createdAt: now.toISOString().split('T')[0]
             };
-            DB.add('fabOrders', newOrder);
+            saveWithOwner('fabOrders', newOrder);
             // Reset wizard
             document.querySelectorAll('#fabStep0 input[type="checkbox"]').forEach(c => c.checked = false);
             fabWizardStep = 0;
@@ -2474,10 +2596,8 @@ window.addEventListener('DOMContentLoaded', function() {
                     <td>${c.assignedTo || '-'}</td>
                     <td style="font-size:12px;">${c.since || '-'}</td>
                     <td>
-                        <div class="btn-group">
-                            <button class="btn btn-xs btn-info" onclick="editCustomer('${c.id}')">Edit</button>
-                            <button class="btn btn-xs btn-danger" onclick="deleteRecord('customers','${c.id}')">Delete</button>
-                        </div>
+                        <button class="btn btn-xs btn-info" onclick="editCustomer('${c.id}')">Edit</button>
+                        <button class="btn btn-xs btn-danger" onclick="deleteRecord('customers','${c.id}')">Delete</button>
                     </td>
                 </tr>
             `).join('');
@@ -2814,7 +2934,7 @@ window.addEventListener('DOMContentLoaded', function() {
                 docData.id = 'DOC-' + String(count + 1).padStart(4, '0');
                 docData.createdAt = new Date().toISOString();
                 docData.updatedAt = new Date().toISOString();
-                DB.add('documents', docData);
+                saveWithOwner('documents', docData);
                 showToast('Document uploaded', 'success');
             }
             closeModal('docUploadModal');
@@ -2943,7 +3063,7 @@ window.addEventListener('DOMContentLoaded', function() {
                             createdAt: new Date().toISOString(),
                             updatedAt: new Date().toISOString()
                         };
-                        DB.add('documents', newDoc);
+                        saveWithOwner('documents', newDoc);
                         imported++;
                         existing.push(doc.name);
                     }
@@ -2975,7 +3095,7 @@ window.addEventListener('DOMContentLoaded', function() {
                                 createdAt: new Date().toISOString(),
                                 updatedAt: new Date().toISOString()
                             };
-                            DB.add('documents', newDoc);
+                            saveWithOwner('documents', newDoc);
                             imported++;
                             existing.push(docName);
                         }
@@ -3419,7 +3539,7 @@ window.addEventListener('DOMContentLoaded', function() {
                 createdAt: new Date().toISOString()
             };
 
-            DB.add('quality', data);
+            saveWithOwner('quality', data);
             closeModal('jobCompletionReportModal');
             showToast('Job completion report saved', 'success');
         }
@@ -3524,7 +3644,7 @@ window.addEventListener('DOMContentLoaded', function() {
                     assignedTo: document.getElementById('custAssignedTo').value.trim(),
                     since: new Date().toISOString().split('T')[0]
                 };
-                DB.add('customers', newCust);
+                saveWithOwner('customers', newCust);
                 closeModal('customerModal');
                 refreshAll();
                 console.log('[DEBUG] Saved customer:', newCust.id, 'Total:', DB.get('customers').length);
@@ -3621,7 +3741,7 @@ window.addEventListener('DOMContentLoaded', function() {
                 showToast('Equipment updated!', 'success');
             } else {
                 data.id = 'EQP-' + String(DB.get('equipment').length + 1).padStart(3, '0');
-                DB.add('equipment', data);
+                saveWithOwner('equipment', data);
                 closeModal('equipmentModal');
                 renderEquipment();
                 showToast('Equipment ' + data.name + ' added!');
@@ -3859,7 +3979,7 @@ window.addEventListener('DOMContentLoaded', function() {
                 techPrePoDel: document.getElementById('woPrePoDel').checked,
                 createdAt: now.toISOString().split('T')[0]
             };
-            DB.add('workOrders', wo);
+            saveWithOwner('workOrders', wo);
             closeModal('jobModal');
             refreshAll();
             const branchLabel = { fab: 'Fabrication', mar: 'Maintenance & Repair', nonpressure: 'Non-Pressure Equipment' };
@@ -3879,7 +3999,7 @@ window.addEventListener('DOMContentLoaded', function() {
                 eta: new Date().toISOString().split('T')[0] + ' ' + new Date().toLocaleTimeString(),
                 sla: document.getElementById('scSLA').value + 'hr'
             };
-            DB.add('serviceCalls', newSC);
+            saveWithOwner('serviceCalls', newSC);
             closeModal('serviceCallModal');
             refreshAll();
             showToast(`Service Call ${newSC.id} dispatched!`);
@@ -3896,7 +4016,7 @@ window.addEventListener('DOMContentLoaded', function() {
                 cert: `CERT-${String(DB.get('inspections').length + 1).padStart(3, '0')}.pdf`,
                 traceability: `Lot trace verified → ${document.getElementById('inspWO').value}`
             };
-            DB.add('inspections', newInsp);
+            saveWithOwner('inspections', newInsp);
             closeModal('inspectionModal');
             refreshAll();
             showToast('Inspection submitted successfully!');
@@ -4723,7 +4843,7 @@ window.addEventListener('DOMContentLoaded', function() {
             if(!matItems.length){showToast('No material items found in Sales Order','error');return;}
             var prId=DB.genId('purchaseRequisitions');
             var pr={id:prId,woRef:job.id,salesRef:so.id,custName:so.custName||job.custName||job.client||'',productName:so.productName||job.productName||job.equipment||'',items:matItems,status:'Approved',approvedBy:'Design Dept',approvedAt:new Date().toISOString(),createdAt:new Date().toISOString()};
-            DB.add('purchaseRequisitions',pr);
+            saveWithOwner('purchaseRequisitions',pr);
             // Update WO
             job.prRef=prId;
             job.materialApproved=true;
@@ -5073,7 +5193,7 @@ window.addEventListener('DOMContentLoaded', function() {
                 documents: ['Air_Receiver_GA_Drawing_Rev3.pdf', 'WPS_SMAW_6G.pdf', 'Material_Certificate_SA516_70.pdf'].map(n => ({ name: n, uploaded: true })),
                 createdAt: now.toISOString().split('T')[0]
             };
-            DB.add('fabOrders', fo);
+            saveWithOwner('fabOrders', fo);
 
             // Update WO status to In Fab
             const data = JSON.parse(localStorage.getItem('ad_deen_erp_db') || '{}');
@@ -5326,7 +5446,7 @@ window.addEventListener('DOMContentLoaded', function() {
                 createdAt: now.toISOString().split('T')[0]
             };
 
-            DB.add('fabOrders', fo);
+            saveWithOwner('fabOrders', fo);
 
             const data = JSON.parse(localStorage.getItem('ad_deen_erp_db') || '{}');
             const jobs = data.workOrders || [];
@@ -5788,7 +5908,7 @@ window.addEventListener('DOMContentLoaded', function() {
             const id = 'PR-' + now.getFullYear() + '-' + String(allPRs.length + 1).padStart(4, '0');
 
             const pr = { id, woRef, items, supplier, estCost, status: 'Pending', createdAt: now.toISOString().split('T')[0], requestedBy };
-            DB.add('purchaseRequisitions', pr);
+            saveWithOwner('purchaseRequisitions', pr);
 
             closeModal('prModal');
             if (document.getElementById('purchasing-section')?.classList.contains('active')) {
@@ -5826,7 +5946,7 @@ window.addEventListener('DOMContentLoaded', function() {
             ];
 
             const pr = { id, woRef: _currentMarWoId, items, supplier: '', estCost: 0, status: 'Pending', createdAt: now.toISOString().split('T')[0], requestedBy: job.raisedBy || 'Unknown' };
-            DB.add('purchaseRequisitions', pr);
+            saveWithOwner('purchaseRequisitions', pr);
             updatePrStatusBlock(pr);
             showToast('🛒 Purchase Requisition ' + id + ' created for ' + _currentMarWoId);
         }
@@ -5963,7 +6083,7 @@ window.addEventListener('DOMContentLoaded', function() {
                 createdAt: now.toISOString().split('T')[0],
                 createdBy: Auth.getUser() ? Auth.getUser().name : 'Shahrul Azmi Salim Shah'
             };
-            DB.add('purchaseOrders', po);
+            saveWithOwner('purchaseOrders', po);
             closeModal('poModal');
             renderPurchasing();
             showToast('📦 Purchase Order ' + id + ' created — RM ' + totalCost.toLocaleString());
@@ -6112,7 +6232,7 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
             if (existing) {
                 DB.update('purchaseRequisitions', prNumber, prData);
             } else {
-                DB.add('purchaseRequisitions', prData);
+                saveWithOwner('purchaseRequisitions', prData);
             }
 
             showToast('✅ Purchase Requisition ' + prNumber + ' created successfully!');
@@ -6144,7 +6264,7 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
             if (existing) {
                 DB.update('purchaseRequisitions', prNumber, Object.assign({}, existing, prData));
             } else {
-                DB.add('purchaseRequisitions', prData);
+                saveWithOwner('purchaseRequisitions', prData);
             }
 
             const statusDiv = document.getElementById('prApprovalStatus');
@@ -6216,7 +6336,7 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
             if (existing) {
                 DB.update('purchaseRequisitions', prNumber, Object.assign({}, existing, { status: 'Draft', savedAt: new Date().toISOString() }));
             } else {
-                DB.add('purchaseRequisitions', {
+                saveWithOwner('purchaseRequisitions', {
                     id: prNumber,
                     number: prNumber,
                     status: 'Draft',
@@ -6407,7 +6527,7 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
             if (existing) {
                 DB.update('purchaseOrders', poNumber, Object.assign({}, existing, poData));
             } else {
-                DB.add('purchaseOrders', poData);
+                saveWithOwner('purchaseOrders', poData);
             }
 
             showToast('✅ Purchase Order ' + poNumber + ' saved!');
@@ -6422,7 +6542,7 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
             if (existing) {
                 DB.update('purchaseOrders', poNumber, Object.assign({}, existing, { status: 'Draft', savedAt: new Date().toISOString() }));
             } else {
-                DB.add('purchaseOrders', {
+                saveWithOwner('purchaseOrders', {
                     id: poNumber,
                     number: poNumber,
                     status: 'Draft',
@@ -6576,7 +6696,7 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
                     data.salesOrderId = existing.salesOrderId || '';
                     data.createdAt = existing.createdAt;
                     data.id = editId;
-                    DB.add('clientPOs', data);
+                    saveWithOwner('clientPOs', data);
                     showToast('P.O updated', 'success');
                 }
             } else {
@@ -6584,7 +6704,7 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
                 data.id = 'CPO-' + String(count + 1).padStart(4, '0');
                 data.createdAt = new Date().toISOString();
                 data.salesOrderId = '';
-                DB.add('clientPOs', data);
+                saveWithOwner('clientPOs', data);
                 showToast('P.O saved', 'success');
             }
 
@@ -6628,7 +6748,7 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
 
             po.salesOrderId = '(pending)';
             po.status = 'Converted';
-            DB.add('clientPOs', po);
+            saveWithOwner('clientPOs', po);
             showToast('Sales order form pre-filled from ' + po.poNumber, 'success');
         }
 
@@ -6693,7 +6813,7 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
                 showToast('Cost entry updated!', 'success');
             } else {
                 entry.id = DB.genId('jobCosting');
-                DB.add('jobCosting', entry);
+                saveWithOwner('jobCosting', entry);
                 closeModal('costingModal');
                 renderCosting();
                 showToast('Cost entry added!', 'success');
@@ -6831,7 +6951,7 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
                 showToast('Progress entry updated!', 'success');
             } else {
                 entry.id = DB.genId('jobProgress');
-                DB.add('jobProgress', entry);
+                saveWithOwner('jobProgress', entry);
                 closeModal('woProgressModal');
                 renderWOGantt(woId, 'woGanttContainer');
                 showToast('Progress entry added!', 'success');
@@ -7151,7 +7271,7 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
                 npOtherMaterial: document.getElementById('soNpOtherMat').value.trim()
             };
 
-            DB.add('salesOrders', so);
+            saveWithOwner('salesOrders', so);
             closeModal('jobModal');
             _salesMode = false;
             document.getElementById('soSalesFields').style.display = 'none';
@@ -7377,7 +7497,7 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
                 npBeamItems: so.npBeamItems ? JSON.parse(JSON.stringify(so.npBeamItems)) : [],
                 npOtherMaterial: so.npOtherMaterial || ''
             };
-            DB.add('workOrders', wo);
+            saveWithOwner('workOrders', wo);
             DB.update('salesOrders', so.id, { woRef: woId, status: 'In Progress' });
             renderSales();
             showToast('🔗 Work Order ' + woId + ' generated from ' + so.id);
@@ -7651,7 +7771,7 @@ function renderDesignReviews() {
                 wo.testingRequirement=so.repairInfo&&so.repairInfo.tests?Object.keys(so.repairInfo.tests).filter(function(k){return so.repairInfo.tests[k];}).map(function(k){return k.charAt(0).toUpperCase()+k.slice(1);}).join(', '):'';
                 wo.marDoshReg=so.repairInfo?so.repairInfo.regNo||'':'';
             }
-            DB.add('workOrders',wo);
+            saveWithOwner('workOrders',wo);
             renderDesignReviews();
             renderJobsTable();
             renderKanbanBoard();
@@ -8496,7 +8616,7 @@ function saveDesignNotesAndReject(soId) {
                 qt.id = id;
                 qt.createdAt = dateStr;
                 qt.createdBy = 'Sales Team';
-                await DB.add('quotations', qt);
+                await saveWithOwner('quotations', qt);
                 showToast('✅ Quotation ' + id + ' created');
             }
 
@@ -8861,7 +8981,7 @@ function saveDesignNotesAndReject(soId) {
                 const count = DB.get('invoices').length + 1;
                 const id = 'INV-' + year + '-' + String(count).padStart(4, '0');
                 inv.id = id;
-                DB.add('invoices', inv);
+                saveWithOwner('invoices', inv);
 
                 // If created from a quotation, mark quotation as Converted and link it
                 if (fromQt) {
@@ -8886,7 +9006,7 @@ function saveDesignNotesAndReject(soId) {
             // Also create accounting entry
             const year = new Date().getFullYear();
             const count = DB.get('accountingEntries').length + 1;
-            DB.add('accountingEntries', {
+            saveWithOwner('accountingEntries', {
                 id: 'GL-' + year + '-' + String(count).padStart(4, '0'),
                 date: inv.paidDate,
                 description: 'Payment received - ' + inv.customer + ' - ' + invId,
@@ -8977,7 +9097,7 @@ function saveDesignNotesAndReject(soId) {
                     status: 'Active',
                     since: today
                 };
-                DB.add('customers', cust);
+                saveWithOwner('customers', cust);
             }
 
             // 2. Sales Order
@@ -9003,7 +9123,7 @@ function saveDesignNotesAndReject(soId) {
                     headType: '2:1 Ellipsoidal',
                     testingRequirement: 'Hydrostatic @ 18.8 bar'
                 };
-                DB.add('salesOrders', so);
+                saveWithOwner('salesOrders', so);
             }
 
             // 3. Work Order
@@ -9057,7 +9177,7 @@ function saveDesignNotesAndReject(soId) {
                     woRef: soId,
                     createdAt: today
                 };
-                DB.add('workOrders', wo);
+                saveWithOwner('workOrders', wo);
             }
 
             // 4. Fabrication Order
@@ -9108,7 +9228,7 @@ function saveDesignNotesAndReject(soId) {
                     ],
                     createdAt: today
                 };
-                DB.add('fabOrders', fo);
+                saveWithOwner('fabOrders', fo);
             }
 
             // 5. Purchase Requisition
@@ -9129,13 +9249,13 @@ function saveDesignNotesAndReject(soId) {
                     createdAt: today,
                     requestedBy: 'Ahmad Faizal'
                 };
-                DB.add('purchaseRequisitions', pr);
+                saveWithOwner('purchaseRequisitions', pr);
             }
 
             // 6. Quality Inspections
             const ins1Id = 'INS-2026-0001';
             if (!DB.getById('inspections', ins1Id)) {
-                DB.add('inspections', {
+                saveWithOwner('inspections', {
                     id: ins1Id, wo: woId, type: 'Visual Inspection',
                     inspector: 'QC Inspector', date: today,
                     result: 'Passed', cert: 'CERT-001.pdf',
@@ -9144,7 +9264,7 @@ function saveDesignNotesAndReject(soId) {
             }
             const ins2Id = 'INS-2026-0002';
             if (!DB.getById('inspections', ins2Id)) {
-                DB.add('inspections', {
+                saveWithOwner('inspections', {
                     id: ins2Id, wo: woId, type: 'Hydrostatic Test',
                     inspector: 'QC Inspector', date: today,
                     result: 'Passed', cert: 'CERT-002.pdf',
@@ -9153,7 +9273,7 @@ function saveDesignNotesAndReject(soId) {
             }
             const ins3Id = 'INS-2026-0003';
             if (!DB.getById('inspections', ins3Id)) {
-                DB.add('inspections', {
+                saveWithOwner('inspections', {
                     id: ins3Id, wo: woId, type: 'NDT (RT/UT)',
                     inspector: 'NDT Level II', date: today,
                     result: 'Passed', cert: 'CERT-003.pdf',
@@ -9164,7 +9284,7 @@ function saveDesignNotesAndReject(soId) {
             // 7. Quotation (accepted → convertible to invoice)
             const qtId = 'QT-2026-0001';
             if (!DB.getById('quotations', qtId)) {
-                DB.add('quotations', {
+                saveWithOwner('quotations', {
                     id: qtId,
                     customer: 'Petronas',
                     contact: 'Ahmad Faizal',
@@ -9194,7 +9314,7 @@ function saveDesignNotesAndReject(soId) {
             // 8. Invoice
             const invId = 'INV-2026-0001';
             if (!DB.getById('invoices', invId)) {
-                DB.add('invoices', {
+                saveWithOwner('invoices', {
                     id: invId,
                     customer: 'Petronas',
                     contact: 'Ahmad Faizal',
@@ -9226,17 +9346,17 @@ function saveDesignNotesAndReject(soId) {
 
             // 9. Accounting Entries
             if (DB.get('accountingEntries').length === 0) {
-                DB.add('accountingEntries', {
+                saveWithOwner('accountingEntries', {
                     id: 'GL-2026-0001', date: today,
                     description: 'Invoice INV-2026-0001 - Air Receiver SK-304',
                     debit: 450000, credit: 0, account: 'Accounts Receivable'
                 });
-                DB.add('accountingEntries', {
+                saveWithOwner('accountingEntries', {
                     id: 'GL-2026-0002', date: today,
                     description: 'Payment received - Petronas - INV-2026-0001',
                     debit: 0, credit: 450000, account: 'Revenue'
                 });
-                DB.add('accountingEntries', {
+                saveWithOwner('accountingEntries', {
                     id: 'GL-2026-0003', date: today,
                     description: 'Material cost - SA-516 Gr.70 Plate',
                     debit: 0, credit: 185000, account: 'Inventory / COGS'
@@ -10179,7 +10299,7 @@ function copyCalcToQuote() {
             subtotal: 0, taxAmount: 0, total: 0,
             createdAt: now.toISOString()
         };
-        DB.add('quotations', newQt);
+        saveWithOwner('quotations', newQt);
         qtId = newQt.id;
         if (editIdEl) editIdEl.value = qtId;
         // Update modal title
@@ -10390,19 +10510,19 @@ function saveAndSubmitSalesOrder(){
         designPressure:getValue('soPEDesignPressure'),designPressureUnit:getValue('soPEDesignPressureUnit'),designTemp:getValue('soPEDesignTemp'),
         designCode:getValue('soPEDesignCode')};
     }
-    DB.add('salesOrders',so);
+    saveWithOwner('salesOrders',so);
     // Create journal entry
     if(projectCost>0){
         var je={id:DB.genId('journal'),date:new Date().toISOString().slice(0,10),ref:'SO-'+so.id,desc:'Project cost - '+productName,lines:[{acct:'5000-COGS',dr:projectCost,cr:0},{acct:'1200-AR',dr:0,cr:projectCost}],status:'Posted'};
-        DB.add('journal',je);
+        saveWithOwner('journal',je);
     }
     // Create accounting entry for Account Dept
     var year=new Date().getFullYear();
     var acCount=DB.get('accountingEntries').length+1;
     var acId='GL-'+year+'-'+String(acCount).padStart(4,'0');
-    DB.add('accountingEntries',{id:acId,date:new Date().toISOString().slice(0,10),description:'Sales Order '+so.id+' - '+productName+' ('+custName+')',debit:projectCost||0,credit:0,account:'Accounts Receivable'});
+    saveWithOwner('accountingEntries',{id:acId,date:new Date().toISOString().slice(0,10),description:'Sales Order '+so.id+' - '+productName+' ('+custName+')',debit:projectCost||0,credit:0,account:'Accounts Receivable'});
     var acCount2=DB.get('accountingEntries').length+1;
-    DB.add('accountingEntries',{id:'GL-'+year+'-'+String(acCount2).padStart(4,'0'),date:new Date().toISOString().slice(0,10),description:'Revenue recognition - '+so.id+' - '+productName,debit:0,credit:budget||0,account:'Revenue'});
+    saveWithOwner('accountingEntries',{id:'GL-'+year+'-'+String(acCount2).padStart(4,'0'),date:new Date().toISOString().slice(0,10),description:'Revenue recognition - '+so.id+' - '+productName,debit:0,credit:budget||0,account:'Revenue'});
 
     closeModal('salesNewOrderModal');
     renderSales();
@@ -11470,7 +11590,7 @@ function autoFillHTExample(){
 }
 function saveHydroTestReport(){
     var data={id:DB.genId('quality'),type:'hydroTest',reportNo:getText('htReportNo'),date:getValue('htDate'),woNumber:getValue('htWONumber'),equipment:getValue('htEquipment'),serialNo:getValue('htSerialNo'),client:getValue('htClient'),location:getValue('htLocation'),code:getValue('htCode'),mawp:getValue('htMAWP'),testPressure:getValue('htTestPressure'),designTemp:getValue('htDesignTemp'),medium:getValue('htMedium'),result:getValue('htResult'),remarks:getValue('htRemarks'),inspector:getValue('htTestedBy'),qcName:getValue('htQcName'),aiName:getValue('htAiName'),createdAt:new Date().toISOString()};
-    DB.add('quality',data);
+    saveWithOwner('quality',data);
     closeModal('hydroTestModal');
     showToast('Hydro test report saved','success');
 }
@@ -11578,7 +11698,7 @@ function autoFillBTExample(){
 }
 function saveBubbleTestReport(){
     var data={id:DB.genId('quality'),type:'bubbleTest',reportNo:getText('btReportNo'),date:getValue('btDate'),woNumber:getValue('btWONumber'),equipment:getValue('btEquipment'),client:getValue('btClient'),jointId:getValue('btJointID'),weldType:getValue('btWeldType'),standard:getValue('btStandard'),testPressure:getValue('btTestPressure'),medium:getValue('btMedium'),soapType:getValue('btSoapType'),result:getValue('btResult'),totalLength:getValue('btTotalLength'),remarks:getValue('btRemarks'),inspector:getValue('btTestedBy'),qcName:getValue('btQcName'),createdAt:new Date().toISOString()};
-    DB.add('quality',data);
+    saveWithOwner('quality',data);
     closeModal('bubbleTestModal');
     showToast('Bubble test report saved','success');
 }
@@ -11638,7 +11758,7 @@ function autoFillVTExample(){
 }
 function saveVisualInspectionReport(){
     var data={id:DB.genId('quality'),type:'visualInspection',reportNo:getText('vtReportNo'),date:getValue('vtDate'),woNumber:getValue('vtWONumber'),equipment:getValue('vtEquipment'),stage:getValue('vtStage'),client:getValue('vtClient'),location:getValue('vtLocation'),code:getValue('vtCode'),lighting:getValue('vtLighting'),result:getValue('vtResult'),ndtRequired:getValue('vtNDTRequired'),remarks:getValue('vtRemarks'),inspector:getValue('vtInspector'),qcName:getValue('vtQcSupervisor'),createdAt:new Date().toISOString()};
-    DB.add('quality',data);
+    saveWithOwner('quality',data);
     closeModal('visualInspectionModal');
     showToast('Visual inspection report saved','success');
 }
@@ -11731,7 +11851,7 @@ function updateUTMStats(){
 }
 function saveUtmReport(){
     var data={id:DB.genId('quality'),type:'utm',reportNo:getText('utmReportNo'),date:getValue('utmDate'),woNumber:getValue('utmWONumber'),equipment:getValue('utmEquipment'),serialNo:getValue('utmSerialNo'),client:getValue('utmClient'),location:getValue('utmLocation'),equipType:getValue('utmEquipType'),originalThk:getValue('utmOriginalThk'),minReading:getText('utmMinReading'),maxReading:getText('utmMaxReading'),avgReading:getText('utmAvgReading'),corrosionRate:getText('utmCorrosionRate'),result:getValue('utmResult'),nextInspection:getValue('utmNextInspection'),recommendations:getValue('utmRecommendations'),techName:getValue('utmTechName'),qcName:getValue('utmQcName'),createdAt:new Date().toISOString()};
-    DB.add('quality',data);
+    saveWithOwner('quality',data);
     closeModal('utmReportModal');
     showToast('UTM report saved','success');
 }
@@ -11845,7 +11965,7 @@ function calculateThickness(){
 }
 function saveThickness(){
     var data={id:DB.genId('quality'),type:'thickness',equipment:getValue('thkEquipment'),component:getValue('thkComponent'),material:getValue('thkMaterial'),code:getValue('thkCode'),od:getValue('thkOD'),pressure:getValue('thkPressure'),stress:getValue('thkStress'),jointEff:getValue('thkJointEff'),ca:getValue('thkCA'),nominalThk:getValue('thkNominal'),actualThk:getValue('thkActual'),previousThk:getValue('thkPrevious'),years:getValue('thkYears'),minThk:getText('thkMinResult'),corrRate:getText('thkCorrRateResult'),remLife:getText('thkRemLifeResult'),margin:getText('thkMarginResult'),status:getText('thkStatusResult'),nextDue:getText('thkNextDueResult'),location:getValue('thkLocation'),createdAt:new Date().toISOString()};
-    DB.add('quality',data);
+    saveWithOwner('quality',data);
     closeModal('thicknessModal');
     showToast('Thickness calculation saved','success');
 }
@@ -11861,7 +11981,7 @@ function openCertificateModal(){
 }
 function saveCertificate(){
     var data={id:DB.genId('certificates'),certNo:getValue('certNo'),type:getValue('certType'),issuer:getValue('certIssuer'),inspRef:getValue('certInspRef'),issueDate:getValue('certIssueDate'),expiryDate:getValue('certExpiryDate'),status:getValue('certStatus'),docRef:getValue('certDocRef'),notes:getValue('certNotes'),createdAt:new Date().toISOString()};
-    DB.add('certificates',data);
+    saveWithOwner('certificates',data);
     closeModal('certificateModal');
     showToast('Certificate saved','success');
 }
@@ -11877,7 +11997,7 @@ function openTraceabilityModal(){
 }
 function saveTraceability(){
     var data={id:DB.genId('traceability'),material:getValue('traceMaterial'),grade:getValue('traceGrade'),heatNo:getValue('traceHeatNo'),lotNo:getValue('traceLotNo'),millCert:getValue('traceMillCert'),supplier:getValue('traceSupplier'),qty:getValue('traceQty'),inspRef:getValue('traceInspRef'),notes:getValue('traceNotes'),createdAt:new Date().toISOString()};
-    DB.add('traceability',data);
+    saveWithOwner('traceability',data);
     closeModal('traceabilityModal');
     showToast('Traceability record saved','success');
 }
@@ -12246,7 +12366,7 @@ function saveMethodStatement() {
         DB.update('methodStatements', editId, data);
         showToast('Method Statement updated');
     } else {
-        DB.add('methodStatements', data);
+        saveWithOwner('methodStatements', data);
         showToast('Method Statement created');
     }
     closeModal('methodStatementModal');
@@ -12544,7 +12664,7 @@ function saveAccount(){
     var editId=getValue('accEditId');
     var data={code:getValue('accCode'),name:getValue('accName'),type:getValue('accType'),category:getValue('accCategory')};
     if(editId){DB.update('accounts',editId,data);}
-    else{data.id=DB.genId('accounts');data.createdAt=new Date().toISOString();DB.add('accounts',data);}
+    else{data.id=DB.genId('accounts');data.createdAt=new Date().toISOString();saveWithOwner('accounts',data);}
     closeModal('accountModal');
     renderAccounting();
     showToast('Account saved','success');
@@ -12604,7 +12724,7 @@ function saveJournalEntry(){
     var totalCr=lines.reduce(function(a,l){return a+l.cr;},0);
     if(Math.abs(totalDr-totalCr)>0.01){alert('Journal is not balanced');return;}
     var data={id:DB.genId('journal'),date:getValue('journalDate'),ref:getValue('journalRef'),desc:getValue('journalDesc'),lines:lines,status:'Posted',createdAt:new Date().toISOString()};
-    DB.add('journal',data);
+    saveWithOwner('journal',data);
     closeModal('journalModal');
     renderAccounting();
     showToast('Journal entry saved','success');
