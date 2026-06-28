@@ -738,40 +738,35 @@ console.log('🤖 AI Assistant Ready — Click robot to open');
 
             login(username, password) {
                 var self = this;
-                // Try server login first
-                return DB.authenticate(username, password).then(function(serverUser) {
-                    if (serverUser) {
-                        var sessionUser = { id: serverUser.id, username: serverUser.username, name: serverUser.name, role: serverUser.role, avatar: serverUser.avatar || serverUser.name.charAt(0).toUpperCase(), firstLogin: serverUser.firstLogin };
-                        localStorage.setItem(SESSION_KEY, JSON.stringify(sessionUser));
-                        self.currentUser = sessionUser;
-                        try {
-                            if (typeof OnlineTracker !== 'undefined' && OnlineTracker.register) {
-                                OnlineTracker.register(sessionUser);
-                            } else if (typeof updateOnlineStatus === 'function') {
-                                updateOnlineStatus();
-                                updateOnlineIndicator();
-                            }
-                        } catch(e) {}
-                        return sessionUser;
-                    }
-                    // Server offline — fall back to local auth
-                    var user = DB.authenticate(username, password);
-                    if (user) {
-                        var sessionUser = { id: user.id, username: user.username, name: user.name, role: user.role, avatar: user.avatar || user.name.charAt(0).toUpperCase(), firstLogin: user.firstLogin };
-                        localStorage.setItem(SESSION_KEY, JSON.stringify(sessionUser));
-                        self.currentUser = sessionUser;
-                        try {
-                            if (typeof OnlineTracker !== 'undefined' && OnlineTracker.register) {
-                                OnlineTracker.register(sessionUser);
-                            } else if (typeof updateOnlineStatus === 'function') {
-                                updateOnlineStatus();
-                                updateOnlineIndicator();
-                            }
-                        } catch(e) {}
-                        return sessionUser;
-                    }
-                    return null;
-                });
+                
+                // Use local authentication
+                var user = DB.authenticate(username, password);
+                
+                if (user) {
+                    var sessionUser = {
+                        id: user.id,
+                        username: user.username,
+                        name: user.name,
+                        role: user.role,
+                        avatar: user.avatar || user.name.charAt(0).toUpperCase(),
+                        firstLogin: user.firstLogin
+                    };
+                    
+                    localStorage.setItem(SESSION_KEY, JSON.stringify(sessionUser));
+                    self.currentUser = sessionUser;
+                    
+                    // Online tracker
+                    try {
+                        if (typeof OnlineTracker !== 'undefined' && OnlineTracker.register) {
+                            OnlineTracker.register(sessionUser);
+                        }
+                    } catch(e) {}
+                    
+                    // Return as resolved Promise for compatibility
+                    return Promise.resolve(sessionUser);
+                }
+                
+                return Promise.resolve(null);
             },
 
             logout() {
@@ -980,37 +975,27 @@ console.log('🤖 AI Assistant Ready — Click robot to open');
         // ========================================================================
         //  AUTH HANDLERS
         // ========================================================================
-        function handleLogin(e) {
-            e.preventDefault();
+       function handleLogin(event) {
+            event.preventDefault();
+            
             var username = document.getElementById('loginUsername').value.trim();
             var password = document.getElementById('loginPassword').value.trim();
-            var btn = document.getElementById('loginBtn');
-            var errorEl = document.getElementById('loginError');
-            if (errorEl) errorEl.textContent = '';
-            if (!username || !password) {
-                if (errorEl) errorEl.textContent = 'Please enter username and password.';
-                return false;
-            }
-            btn.disabled = true;
-            btn.textContent = 'Signing in…';
+            
             Auth.login(username, password).then(function(user) {
-                btn.disabled = false;
-                btn.textContent = 'Sign In';
                 if (user) {
-                    if (user.firstLogin) {
-                        showForcePasswordChange(user);
-                    } else {
-                        proceedAfterLogin(user);
-                    }
+                    document.getElementById('loginScreen').style.display = 'none';
+                    document.getElementById('appContainer').style.display = 'flex';
+                    updateUserInterface(user);
+                    
+                    if (typeof refreshAll === 'function') refreshAll();
+                    if (typeof applyOwnerPermissions === 'function') applyOwnerPermissions();
+                    
+                    console.log('✅ Login successful as', user.role);
                 } else {
-                    if (errorEl) errorEl.textContent = 'Invalid username or password.';
+                    document.getElementById('loginError').textContent = 'Invalid username or password';
+                    document.getElementById('loginError').style.display = 'block';
                 }
-            }).catch(function() {
-                btn.disabled = false;
-                btn.textContent = 'Sign In';
-                if (errorEl) errorEl.textContent = 'Login failed. Server unreachable.';
             });
-            return false;
         }
 
         function updateUserUI(user) {
