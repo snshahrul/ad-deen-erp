@@ -10400,6 +10400,9 @@ function onSoCustChange(){
             if(cp)cp.value=cust.contact||cust.name||'';
             if(em)em.value=cust.email||'';
         }
+        loadRepairEquipmentDropdown(sel.value);
+    } else {
+        loadRepairEquipmentDropdown(null);
     }
 }
 function populateSoClientPOs(){
