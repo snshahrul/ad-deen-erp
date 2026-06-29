@@ -5856,41 +5856,17 @@ document.addEventListener('click', function(event) {
                         <!-- MANHOLE -->
                         <div class="report-section">
                             <h4 class="report-section-title">🚪 Manhole</h4>
-                            <label style="display:flex;align-items:center;gap:8px;">
+                            <label style="display:flex;align-items:center;gap:8px;font-size:13px;">
                                 <input type="checkbox" id="pvcIncludeMH" onchange="toggleMHFields()"> Include Manhole
                             </label>
-                            <div id="pvcMHFields" style="display:none;margin-top:8px;">
-                                <div class="form-row-2">
-                                    <div class="form-group">
-                                        <label class="form-label">Size</label>
-                                        <select class="form-control" id="pvcMHSize">
-                                            <option value="450mm ID x 250mm">450mm ID x 250mm</option>
-                                            <option value="500mm ID x 250mm" selected>500mm ID x 250mm (Standard)</option>
-                                            <option value="600mm ID x 250mm">600mm ID x 250mm</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="form-label">Type</label>
-                                        <select class="form-control" id="pvcMHType">
-                                            <option>Hinged with Blind Flange</option>
-                                            <option>Standard (Blind Flange)</option>
-                                        </select>
-                                    </div>
+                            <div id="pvcMHFields" style="display:none;margin-top:10px;">
+                                <div class="form-row-2" style="margin-bottom:8px;">
+                                    <div class="form-group"><label class="form-label">Size</label><select class="form-control" id="pvcMHSize"><option value="450mm ID x 250mm">450mm ID x 250mm</option><option value="500mm ID x 250mm" selected>500mm ID x 250mm (Standard)</option><option value="600mm ID x 250mm">600mm ID x 250mm</option></select></div>
+                                    <div class="form-group"><label class="form-label">Type</label><select class="form-control" id="pvcMHType"><option>Hinged with Blind Flange</option><option>Standard (Blind Flange)</option></select></div>
                                 </div>
-                                <div class="form-row-2" style="margin-top:6px;">
-                                    <div class="form-group">
-                                        <label class="form-label">Position</label>
-                                        <select class="form-control" id="pvcMHPosition" onchange="toggleMHPositionFields()">
-                                            <option value="left-dish-center">Left Dish End — Center</option>
-                                            <option value="right-dish-center">Right Dish End — Center</option>
-                                            <option value="shell-center">Shell Body — Center</option>
-                                            <option value="custom-level">Custom Level (from bottom)</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group" id="pvcMHLevelGroup" style="display:none;">
-                                        <label class="form-label">Level from Bottom Dish End Weld Seam (mm)</label>
-                                        <input type="number" class="form-control" id="pvcMHLevel" value="0" min="0" step="10" placeholder="0 = bottom">
-                                    </div>
+                                <div class="form-row-2">
+                                    <div class="form-group"><label class="form-label">Position</label><select class="form-control" id="pvcMHPosition" onchange="toggleMHPositionFields()"><option value="left-dish-center">Left Dish End — Center</option><option value="right-dish-center">Right Dish End — Center</option><option value="shell-center">Shell Body — Center</option><option value="custom-level">Custom Level (from bottom)</option></select></div>
+                                    <div class="form-group" id="pvcMHLevelGroup" style="display:none;"><label class="form-label">Level from Bottom (mm)</label><input type="number" class="form-control" id="pvcMHLevel" value="0" min="0" step="10"></div>
                                 </div>
                             </div>
                         </div>
@@ -5898,48 +5874,18 @@ document.addEventListener('click', function(event) {
                         <!-- HANDHOLE -->
                         <div class="report-section">
                             <h4 class="report-section-title">🔲 Handhole</h4>
-                            <label style="display:flex;align-items:center;gap:8px;">
+                            <label style="display:flex;align-items:center;gap:8px;font-size:13px;">
                                 <input type="checkbox" id="pvcIncludeHH" onchange="toggleHHFields()"> Include Handhole
                             </label>
-                            <div id="pvcHHFields" style="display:none;margin-top:8px;">
-                                <div class="form-row-3">
-                                    <div class="form-group">
-                                        <label class="form-label">NB Size</label>
-                                        <select class="form-control" id="pvcHHSize">
-                                            <option value="NB300">NB300</option>
-                                            <option value="NB250">NB250</option>
-                                            <option value="NB200">NB200</option>
-                                            <option value="NB150">NB150</option>
-                                            <option value="NB100">NB100</option>
-                                            <option value="NB80">NB80</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="form-label">Type</label>
-                                        <select class="form-control" id="pvcHHType">
-                                            <option>Blind Flange</option>
-                                            <option>Hinged with Blind Flange</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="form-label">Qty</label>
-                                        <input type="number" class="form-control" id="pvcHHQty" value="1" min="1" max="10">
-                                    </div>
+                            <div id="pvcHHFields" style="display:none;margin-top:10px;">
+                                <div class="form-row-3" style="margin-bottom:8px;">
+                                    <div class="form-group"><label class="form-label">NB Size</label><select class="form-control" id="pvcHHSize"><option value="NB300">NB300</option><option value="NB250">NB250</option><option value="NB200">NB200</option><option value="NB150">NB150</option><option value="NB100">NB100</option><option value="NB80">NB80</option></select></div>
+                                    <div class="form-group"><label class="form-label">Type</label><select class="form-control" id="pvcHHType"><option>Blind Flange</option><option>Hinged with Blind Flange</option></select></div>
+                                    <div class="form-group"><label class="form-label">Qty</label><input type="number" class="form-control" id="pvcHHQty" value="1" min="1" max="10"></div>
                                 </div>
-                                <div class="form-row-2" style="margin-top:6px;">
-                                    <div class="form-group">
-                                        <label class="form-label">Position</label>
-                                        <select class="form-control" id="pvcHHPosition" onchange="toggleHHPositionFields()">
-                                            <option value="left-dish-center">Left Dish End — Center</option>
-                                            <option value="right-dish-center">Right Dish End — Center</option>
-                                            <option value="shell-center">Shell Body — Center</option>
-                                            <option value="custom-level">Custom Level (from bottom)</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group" id="pvcHHLevelGroup" style="display:none;">
-                                        <label class="form-label">Level from Bottom Dish End Weld Seam (mm)</label>
-                                        <input type="number" class="form-control" id="pvcHHLevel" value="0" min="0" step="10" placeholder="0 = bottom">
-                                    </div>
+                                <div class="form-row-2">
+                                    <div class="form-group"><label class="form-label">Position</label><select class="form-control" id="pvcHHPosition" onchange="toggleHHPositionFields()"><option value="left-dish-center">Left Dish End — Center</option><option value="right-dish-center">Right Dish End — Center</option><option value="shell-center">Shell Body — Center</option><option value="custom-level">Custom Level (from bottom)</option></select></div>
+                                    <div class="form-group" id="pvcHHLevelGroup" style="display:none;"><label class="form-label">Level from Bottom (mm)</label><input type="number" class="form-control" id="pvcHHLevel" value="0" min="0" step="10"></div>
                                 </div>
                             </div>
                         </div>
@@ -5975,9 +5921,15 @@ document.addEventListener('click', function(event) {
                         <!-- LIFTING LUGS -->
                         <div class="report-section">
                             <h4 class="report-section-title">🏗️ Lifting Lugs</h4>
-                            <label style="display:flex;align-items:center;gap:8px;">
-                                <input type="checkbox" id="pvcIncludeLugs" checked> Include Lifting Lugs (2 nos)
+                            <label style="display:flex;align-items:center;gap:8px;font-size:13px;">
+                                <input type="checkbox" id="pvcIncludeLugs" checked onchange="toggleLugFields()"> Include Lifting Lugs
                             </label>
+                            <div id="pvcLugFields" style="margin-top:10px;">
+                                <div class="form-row-2">
+                                    <div class="form-group"><label class="form-label">Type</label><select class="form-control" id="pvcLugType"><option value="standard">Standard (Rectangular)</option><option value="circular">Circular</option><option value="custom">Custom</option></select></div>
+                                    <div class="form-group"><label class="form-label">Quantity (nos)</label><input type="number" class="form-control" id="pvcLugQty" value="2" min="1" max="8"></div>
+                                </div>
+                            </div>
                         </div>
                         
                         <!-- MISCELLANEOUS MATERIAL -->

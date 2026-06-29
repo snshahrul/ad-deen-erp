@@ -10826,6 +10826,11 @@ function toggleHHPositionFields() {
     document.getElementById('pvcHHLevelGroup').style.display = pos === 'custom-level' ? 'block' : 'none';
 }
 
+function toggleLugFields() {
+    var fields = document.getElementById('pvcLugFields');
+    if (fields) fields.style.display = document.getElementById('pvcIncludeLugs').checked ? 'block' : 'none';
+}
+
 function updatePositionOptions() {
     var orientation = document.getElementById('pvcOrientation').value;
     var mhPos = document.getElementById('pvcMHPosition');
@@ -10943,7 +10948,8 @@ async function runCompleteCalculation() {
         num_legs: parseInt(document.getElementById('pvcLegsQty')?.value) || 4,
         lifting_lugs: {
             include: document.getElementById('pvcIncludeLugs').checked,
-            quantity: 2
+            type: document.getElementById('pvcLugType')?.value || 'standard',
+            quantity: parseInt(document.getElementById('pvcLugQty')?.value) || 2
         },
         misc_material: document.getElementById('pvcMiscMaterial')?.value || ''
     };
