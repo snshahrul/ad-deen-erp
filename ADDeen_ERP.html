@@ -6032,22 +6032,15 @@ document.addEventListener('click', function(event) {
                                 <div style="font-size:24px;font-weight:800;color:#059669;text-align:center;" id="pvcCost">RM -</div>
                                 <div style="font-size:11px;color:var(--text-muted);text-align:center;" id="pvcHours"></div>
                                 <div style="margin-top:12px;padding-top:10px;border-top:1px solid #e5e7eb;">
-                                    <div style="display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;font-size:12px;">
-                                        <label style="font-weight:600;">Consumable Cost (RM):</label>
-                                        <input type="number" class="form-control" id="pvcConsumableCost" value="0" min="0" step="0.01" style="width:120px;font-size:12px;" oninput="updatePVCTotalCost()">
-                                        <label style="font-weight:600;">Manpower Cost (RM):</label>
-                                        <input type="number" class="form-control" id="pvcManpowerCost" value="0" min="0" step="0.01" style="width:120px;font-size:12px;" oninput="updatePVCTotalCost()">
-                                        <label style="font-weight:600;">Drawing & Approval Cost (RM):</label>
-                                        <input type="number" class="form-control" id="pvcDrawingCost" value="0" min="0" step="0.01" style="width:120px;font-size:12px;" oninput="updatePVCTotalCost()">
-                                        <label style="font-weight:600;">Inspection Cost (RM):</label>
-                                        <input type="number" class="form-control" id="pvcInspectionCost" value="0" min="0" step="0.01" style="width:120px;font-size:12px;" oninput="updatePVCTotalCost()">
-                                        <label style="font-weight:600;">Testing Requirement Type:</label>
-                                        <input type="text" class="form-control" id="pvcTestingType" placeholder="e.g. Hydrostatic, Pneumatic, NDT..." style="width:120px;font-size:12px;">
-                                        <label style="font-weight:600;">Testing Cost (RM):</label>
-                                        <input type="number" class="form-control" id="pvcTestingCost" value="0" min="0" step="0.01" style="width:120px;font-size:12px;" oninput="updatePVCTotalCost()">
-                                        <label style="font-weight:600;">Others Cost (RM):</label>
-                                        <input type="number" class="form-control" id="pvcOthersCost" value="0" min="0" step="0.01" style="width:120px;font-size:12px;" oninput="updatePVCTotalCost()">
-                                    </div>
+                                    <table style="width:100%;font-size:12px;">
+                                        <tr><td style="padding:4px 8px 4px 0;font-weight:600;">Consumable Cost (RM):</td><td style="text-align:right;"><input type="number" class="form-control" id="pvcConsumableCost" value="0" min="0" step="0.01" style="width:130px;font-size:12px;" oninput="updatePVCTotalCost()"></td></tr>
+                                        <tr><td style="padding:4px 8px 4px 0;font-weight:600;">Manpower Cost (RM):</td><td style="text-align:right;"><input type="number" class="form-control" id="pvcManpowerCost" value="0" min="0" step="0.01" style="width:130px;font-size:12px;" oninput="updatePVCTotalCost()"></td></tr>
+                                        <tr><td style="padding:4px 8px 4px 0;font-weight:600;">Drawing &amp; Approval Cost (RM):</td><td style="text-align:right;"><input type="number" class="form-control" id="pvcDrawingCost" value="0" min="0" step="0.01" style="width:130px;font-size:12px;" oninput="updatePVCTotalCost()"></td></tr>
+                                        <tr><td style="padding:4px 8px 4px 0;font-weight:600;">Inspection Cost (RM):</td><td style="text-align:right;"><input type="number" class="form-control" id="pvcInspectionCost" value="0" min="0" step="0.01" style="width:130px;font-size:12px;" oninput="updatePVCTotalCost()"></td></tr>
+                                        <tr><td style="padding:4px 8px 4px 0;font-weight:600;">Testing Requirement:</td><td style="text-align:right;"><input type="text" class="form-control" id="pvcTestingType" placeholder="e.g. Hydrostatic, NDT..." style="width:130px;font-size:12px;"></td></tr>
+                                        <tr><td style="padding:4px 8px 4px 0;font-weight:600;">Testing Cost (RM):</td><td style="text-align:right;"><input type="number" class="form-control" id="pvcTestingCost" value="0" min="0" step="0.01" style="width:130px;font-size:12px;" oninput="updatePVCTotalCost()"></td></tr>
+                                        <tr><td style="padding:4px 8px 4px 0;font-weight:600;">Others Cost (RM):</td><td style="text-align:right;"><input type="number" class="form-control" id="pvcOthersCost" value="0" min="0" step="0.01" style="width:130px;font-size:12px;" oninput="updatePVCTotalCost()"></td></tr>
+                                    </table>
                                     <div style="margin-top:8px;padding-top:8px;border-top:2px solid #059669;display:flex;justify-content:space-between;align-items:center;">
                                         <span style="font-size:13px;font-weight:700;color:#059669;">Total Estimated Cost:</span>
                                         <span style="font-size:18px;font-weight:800;color:#059669;" id="pvcTotalEstCost">RM 0.00</span>
@@ -6330,176 +6323,202 @@ document.addEventListener('click', function(event) {
                 <button class="modal-close" onclick="closeModal('weldCostModal')">x</button>
             </div>
             <div class="modal-body" style="max-height:80vh;overflow-y:auto;">
-                <!-- Joint Type / Weld Geometry -->
-                <div class="form-row-3">
-                    <div class="form-group">
-                        <label class="form-label">Joint Type</label>
-                        <select class="form-input" id="weldJointType" onchange="updateJointTypeUI(); calculateWeldCost();">
-                            <option value="singleV">Single V Butt</option>
-                            <option value="doubleV">Double V Butt</option>
-                            <option value="singleU">Single U Butt</option>
-                            <option value="doubleU">Double U Butt</option>
-                            <option value="singleBevel">Single Bevel Butt</option>
-                            <option value="doubleBevel">Double Bevel Butt</option>
-                            <option value="fillet">Fillet (T-Joint)</option>
-                            <option value="singleVpipe">Single V Butt (Pipe)</option>
-                            <option value="doubleVpipe">Double V Butt (Pipe)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Process</label>
-                        <select class="form-input" id="weldProcess" onchange="updateProcessDefaults(); calculateWeldCost();">
-                            <option value="SMAW">SMAW (Manual Arc)</option>
-                            <option value="GMAW">GMAW (MIG/MAG)</option>
-                            <option value="GTAW">GTAW (TIG)</option>
-                            <option value="FCAW">FCAW (Flux Core)</option>
-                            <option value="SAW">SAW (Submerged Arc)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Weld Preset</label>
-                        <select class="form-input" id="weldPreset" onchange="setWeldPreset(); calculateWeldCost();">
-                            <option value="custom">Custom</option>
-                            <option value="light">Light (1-5mm, low vol)</option>
-                            <option value="medium">Medium (5-15mm, production)</option>
-                            <option value="heavy">Heavy (15-40mm, structural)</option>
-                            <option value="pipeSch40">Pipe Sch 40 (DN15-300)</option>
-                            <option value="pipeSch80">Pipe Sch 80 (DN15-300)</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Geometry Parameters -->
-                <div class="form-row-3" id="weldGeometryParams">
-                    <div class="form-group">
-                        <label class="form-label">Thickness t (mm)</label>
-                        <input type="number" class="form-input" id="weldThickness" value="10" min="0.5" step="0.5" oninput="calculateWeldCost()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Root Face f (mm)</label>
-                        <input type="number" class="form-input" id="weldRootFace" value="2" min="0" step="0.5" oninput="calculateWeldCost()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Root Gap g (mm)</label>
-                        <input type="number" class="form-input" id="weldRootGap" value="3" min="0" step="0.5" oninput="calculateWeldCost()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Bevel Angle α (°)</label>
-                        <input type="number" class="form-input" id="weldBevelAngle" value="30" min="0" step="1" oninput="calculateWeldCost()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Leg Length (fillet) L (mm)</label>
-                        <input type="number" class="form-input" id="weldLegLength" value="6" min="1" step="0.5" oninput="calculateWeldCost()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Weld Length (mm per joint)</label>
-                        <input type="number" class="form-input" id="weldLength" value="1000" min="10" step="10" oninput="calculateWeldCost()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label"># of Joints</label>
-                        <input type="number" class="form-input" id="weldJointCount" value="1" min="1" step="1" oninput="calculateWeldCost()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Outer Dia (pipe) OD (mm)</label>
-                        <input type="number" class="form-input" id="weldPipeOD" value="168.3" min="10" step="0.1" oninput="calculateWeldCost()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Wall Thk (pipe) tw (mm)</label>
-                        <input type="number" class="form-input" id="weldPipeWall" value="7.1" min="1" step="0.1" oninput="calculateWeldCost()">
+                <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px;">
+                    <div style="background:var(--bg-secondary);padding:8px 16px;border-bottom:1px solid var(--border);font-weight:600;font-size:13px;">Joint Configuration</div>
+                    <div style="padding:12px;">
+                        <div class="form-row-3">
+                            <div class="form-group">
+                                <label class="form-label">Joint Type</label>
+                                <select class="form-input" id="weldJointType" onchange="updateJointTypeUI(); calculateWeldCost();">
+                                    <option value="singleV">Single V Butt</option>
+                                    <option value="doubleV">Double V Butt</option>
+                                    <option value="singleU">Single U Butt</option>
+                                    <option value="doubleU">Double U Butt</option>
+                                    <option value="singleBevel">Single Bevel Butt</option>
+                                    <option value="doubleBevel">Double Bevel Butt</option>
+                                    <option value="fillet">Fillet (T-Joint)</option>
+                                    <option value="singleVpipe">Single V Butt (Pipe)</option>
+                                    <option value="doubleVpipe">Double V Butt (Pipe)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Process</label>
+                                <select class="form-input" id="weldProcess" onchange="updateProcessDefaults(); calculateWeldCost();">
+                                    <option value="SMAW">SMAW (Manual Arc)</option>
+                                    <option value="GMAW">GMAW (MIG/MAG)</option>
+                                    <option value="GTAW">GTAW (TIG)</option>
+                                    <option value="FCAW">FCAW (Flux Core)</option>
+                                    <option value="SAW">SAW (Submerged Arc)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Weld Preset</label>
+                                <select class="form-input" id="weldPreset" onchange="setWeldPreset(); calculateWeldCost();">
+                                    <option value="custom">Custom</option>
+                                    <option value="light">Light (1-5mm, low vol)</option>
+                                    <option value="medium">Medium (5-15mm, production)</option>
+                                    <option value="heavy">Heavy (15-40mm, structural)</option>
+                                    <option value="pipeSch40">Pipe Sch 40 (DN15-300)</option>
+                                    <option value="pipeSch80">Pipe Sch 80 (DN15-300)</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Deposition Rate / Productivity -->
-                <hr style="margin:16px 0;">
-                <div class="form-row-3">
-                    <div class="form-group">
-                        <label class="form-label">Welding Current I (A)</label>
-                        <input type="number" class="form-input" id="weldCurrent" value="160" min="20" step="5" oninput="calculateWeldCost()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Arc Voltage V (V)</label>
-                        <input type="number" class="form-input" id="weldVoltage" value="24" min="10" step="0.5" oninput="calculateWeldCost()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Travel Speed S (mm/min)</label>
-                        <input type="number" class="form-input" id="weldTravelSpeed" value="250" min="10" step="5" oninput="calculateWeldCost()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Deposition Efficiency η (%)</label>
-                        <input type="number" class="form-input" id="weldEfficiency" value="65" min="10" step="1" oninput="calculateWeldCost()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Operator Factor</label>
-                        <input type="number" class="form-input" id="weldOpFactor" value="1.0" min="0.1" step="0.1" oninput="calculateWeldCost()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label"># Passes</label>
-                        <input type="number" class="form-input" id="weldPasses" value="3" min="1" step="1" oninput="calculateWeldCost()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Electrode Wire Ø (mm)</label>
-                        <input type="number" class="form-input" id="weldWireDia" value="3.2" min="0.8" step="0.1" oninput="calculateWeldCost()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Filler Density (g/cm³)</label>
-                        <input type="number" class="form-input" id="weldDensity" value="7.85" min="1" step="0.01" oninput="calculateWeldCost()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Filler Cost (RM/kg)</label>
-                        <input type="number" class="form-input" id="weldFillerCost" value="25" min="0" step="0.5" oninput="calculateWeldCost()">
+                <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px;">
+                    <div style="background:var(--bg-secondary);padding:8px 16px;border-bottom:1px solid var(--border);font-weight:600;font-size:13px;">Geometry Parameters</div>
+                    <div style="padding:12px;">
+                        <div class="form-row-3" id="weldGeometryParams">
+                            <div class="form-group">
+                                <label class="form-label">Thickness t (mm)</label>
+                                <input type="number" class="form-input" id="weldThickness" value="10" min="0.5" step="0.5" oninput="calculateWeldCost()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Root Face f (mm)</label>
+                                <input type="number" class="form-input" id="weldRootFace" value="2" min="0" step="0.5" oninput="calculateWeldCost()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Root Gap g (mm)</label>
+                                <input type="number" class="form-input" id="weldRootGap" value="3" min="0" step="0.5" oninput="calculateWeldCost()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Bevel Angle α (°)</label>
+                                <input type="number" class="form-input" id="weldBevelAngle" value="30" min="0" step="1" oninput="calculateWeldCost()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Leg Length (fillet) L (mm)</label>
+                                <input type="number" class="form-input" id="weldLegLength" value="6" min="1" step="0.5" oninput="calculateWeldCost()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Weld Length (mm/joint)</label>
+                                <input type="number" class="form-input" id="weldLength" value="1000" min="10" step="10" oninput="calculateWeldCost()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label"># of Joints</label>
+                                <input type="number" class="form-input" id="weldJointCount" value="1" min="1" step="1" oninput="calculateWeldCost()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Outer Dia (pipe) OD (mm)</label>
+                                <input type="number" class="form-input" id="weldPipeOD" value="168.3" min="10" step="0.1" oninput="calculateWeldCost()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Wall Thk (pipe) tw (mm)</label>
+                                <input type="number" class="form-input" id="weldPipeWall" value="7.1" min="1" step="0.1" oninput="calculateWeldCost()">
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Labour & Overhead -->
-                <hr style="margin:16px 0;">
-                <div class="form-row-3">
-                    <div class="form-group">
-                        <label class="form-label">Labour Rate (RM/hr)</label>
-                        <input type="number" class="form-input" id="weldLabourRate" value="35" min="0" step="1" oninput="calculateWeldCost()">
+                <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px;">
+                    <div style="background:var(--bg-secondary);padding:8px 16px;border-bottom:1px solid var(--border);font-weight:600;font-size:13px;">Welding Parameters</div>
+                    <div style="padding:12px;">
+                        <div class="form-row-3">
+                            <div class="form-group">
+                                <label class="form-label">Welding Current I (A)</label>
+                                <input type="number" class="form-input" id="weldCurrent" value="160" min="20" step="5" oninput="calculateWeldCost()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Arc Voltage V (V)</label>
+                                <input type="number" class="form-input" id="weldVoltage" value="24" min="10" step="0.5" oninput="calculateWeldCost()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Travel Speed S (mm/min)</label>
+                                <input type="number" class="form-input" id="weldTravelSpeed" value="250" min="10" step="5" oninput="calculateWeldCost()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Dep. Eff. η (%)</label>
+                                <input type="number" class="form-input" id="weldEfficiency" value="65" min="10" step="1" oninput="calculateWeldCost()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Operator Factor</label>
+                                <input type="number" class="form-input" id="weldOpFactor" value="1.0" min="0.1" step="0.1" oninput="calculateWeldCost()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label"># Passes</label>
+                                <input type="number" class="form-input" id="weldPasses" value="3" min="1" step="1" oninput="calculateWeldCost()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Electrode Wire Ø (mm)</label>
+                                <input type="number" class="form-input" id="weldWireDia" value="3.2" min="0.8" step="0.1" oninput="calculateWeldCost()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Filler Density (g/cm³)</label>
+                                <input type="number" class="form-input" id="weldDensity" value="7.85" min="1" step="0.01" oninput="calculateWeldCost()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Filler Cost (RM/kg)</label>
+                                <input type="number" class="form-input" id="weldFillerCost" value="25" min="0" step="0.5" oninput="calculateWeldCost()">
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Overhead Rate (RM/hr)</label>
-                        <input type="number" class="form-input" id="weldOverheadRate" value="15" min="0" step="1" oninput="calculateWeldCost()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Power Cost (RM/kWh)</label>
-                        <input type="number" class="form-input" id="weldPowerCost" value="0.58" min="0" step="0.01" oninput="calculateWeldCost()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Inert Gas Cost (RM/hr)</label>
-                        <input type="number" class="form-input" id="weldGasCost" value="0" min="0" step="1" oninput="calculateWeldCost()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Consumable Cost (RM/hr)</label>
-                        <input type="number" class="form-input" id="weldConsumableCost" value="5" min="0" step="0.5" oninput="calculateWeldCost()">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Joint Prep Cost (RM/joint)</label>
-                        <input type="number" class="form-input" id="weldPrepCost" value="2" min="0" step="0.5" oninput="calculateWeldCost()">
+                </div>
+
+                <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px;">
+                    <div style="background:var(--bg-secondary);padding:8px 16px;border-bottom:1px solid var(--border);font-weight:600;font-size:13px;">Labour &amp; Overhead</div>
+                    <div style="padding:12px;">
+                        <div class="form-row-3">
+                            <div class="form-group">
+                                <label class="form-label">Labour Rate (RM/hr)</label>
+                                <input type="number" class="form-input" id="weldLabourRate" value="35" min="0" step="1" oninput="calculateWeldCost()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Overhead Rate (RM/hr)</label>
+                                <input type="number" class="form-input" id="weldOverheadRate" value="15" min="0" step="1" oninput="calculateWeldCost()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Power Cost (RM/kWh)</label>
+                                <input type="number" class="form-input" id="weldPowerCost" value="0.58" min="0" step="0.01" oninput="calculateWeldCost()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Inert Gas Cost (RM/hr)</label>
+                                <input type="number" class="form-input" id="weldGasCost" value="0" min="0" step="1" oninput="calculateWeldCost()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Consumable Cost (RM/hr)</label>
+                                <input type="number" class="form-input" id="weldConsumableCost" value="5" min="0" step="0.5" oninput="calculateWeldCost()">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Joint Prep Cost (RM/joint)</label>
+                                <input type="number" class="form-input" id="weldPrepCost" value="2" min="0" step="0.5" oninput="calculateWeldCost()">
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Results -->
                 <hr style="margin:16px 0;">
-                <div class="form-row-4" style="background:#f0f9ff;padding:12px;border-radius:8px;">
-                    <div><strong>Weld Vol (mm³):</strong> <span id="weldVolResult">0</span></div>
-                    <div><strong>Weld Metal (kg):</strong> <span id="weldMetalResult">0</span></div>
-                    <div><strong>Dep. Rate (kg/hr):</strong> <span id="weldDepRateResult">0</span></div>
-                    <div><strong>Arc Time (hr):</strong> <span id="weldArcTimeResult">0</span></div>
-                    <div><strong>Total Time (hr):</strong> <span id="weldTotalTimeResult">0</span></div>
-                    <div><strong>Filler Cost:</strong> RM <span id="weldFillerCostResult">0.00</span></div>
-                    <div><strong>Labour Cost:</strong> RM <span id="weldLabourCostResult">0.00</span></div>
-                    <div><strong>Overhead Cost:</strong> RM <span id="weldOverheadCostResult">0.00</span></div>
-                    <div><strong>Power Cost:</strong> RM <span id="weldPowerCostResult">0.00</span></div>
-                    <div><strong>Gas Cost:</strong> RM <span id="weldGasCostResult">0.00</span></div>
-                    <div><strong>Consumable Cost:</strong> RM <span id="weldConsumableCostResult">0.00</span></div>
-                    <div><strong>Prep Cost:</strong> RM <span id="weldPrepCostResult">0.00</span></div>
+                <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;">
+                    <div style="background:var(--bg-secondary);padding:8px 16px;border-bottom:1px solid var(--border);font-weight:600;font-size:13px;">Weld Metrics</div>
+                    <table class="table" style="width:100%;margin:0;border:0;">
+                        <tbody>
+                            <tr><td style="width:50%;padding:6px 16px;">Weld Volume</td><td style="width:50%;text-align:right;padding:6px 16px;"><span id="weldVolResult">0</span> mm³</td></tr>
+                            <tr><td style="padding:6px 16px;">Weld Metal Deposited</td><td style="text-align:right;padding:6px 16px;"><span id="weldMetalResult">0</span> kg</td></tr>
+                            <tr><td style="padding:6px 16px;">Deposition Rate</td><td style="text-align:right;padding:6px 16px;"><span id="weldDepRateResult">0</span> g/s</td></tr>
+                            <tr><td style="padding:6px 16px;">Arc Time</td><td style="text-align:right;padding:6px 16px;"><span id="weldArcTimeResult">0</span> hr</td></tr>
+                            <tr style="border-bottom:2px solid var(--border);"><td style="padding:6px 16px;">Total Time</td><td style="text-align:right;padding:6px 16px;"><span id="weldTotalTimeResult">0</span> hr</td></tr>
+                        </tbody>
+                    </table>
+                    <div style="background:var(--bg-secondary);padding:8px 16px;border-bottom:1px solid var(--border);font-weight:600;font-size:13px;">Cost Breakdown</div>
+                    <table class="table" style="width:100%;margin:0;border:0;">
+                        <tbody>
+                            <tr><td style="width:50%;padding:6px 16px;">Filler Cost</td><td style="width:50%;text-align:right;padding:6px 16px;">RM <span id="weldFillerCostResult">0.00</span></td></tr>
+                            <tr><td style="padding:6px 16px;">Labour Cost</td><td style="text-align:right;padding:6px 16px;">RM <span id="weldLabourCostResult">0.00</span></td></tr>
+                            <tr><td style="padding:6px 16px;">Overhead Cost</td><td style="text-align:right;padding:6px 16px;">RM <span id="weldOverheadCostResult">0.00</span></td></tr>
+                            <tr><td style="padding:6px 16px;">Power Cost</td><td style="text-align:right;padding:6px 16px;">RM <span id="weldPowerCostResult">0.00</span></td></tr>
+                            <tr><td style="padding:6px 16px;">Gas Cost</td><td style="text-align:right;padding:6px 16px;">RM <span id="weldGasCostResult">0.00</span></td></tr>
+                            <tr><td style="padding:6px 16px;">Consumable Cost</td><td style="text-align:right;padding:6px 16px;">RM <span id="weldConsumableCostResult">0.00</span></td></tr>
+                            <tr><td style="padding:6px 16px;">Prep Cost</td><td style="text-align:right;padding:6px 16px;">RM <span id="weldPrepCostResult">0.00</span></td></tr>
+                        </tbody>
+                    </table>
                 </div>
-                <div style="background:#e6f7e6;padding:12px;border-radius:8px;margin-top:8px;font-size:1.1em;">
-                    <strong>Total Welding Cost:</strong> RM <span id="weldTotalCostResult">0.00</span>
-                    &nbsp;|&nbsp; <strong>Cost per Joint:</strong> RM <span id="weldCostPerJoint">0.00</span>
-                    &nbsp;|&nbsp; <strong>Cost per Metre:</strong> RM <span id="weldCostPerMeter">0.00</span>
-                    &nbsp; <button class="btn btn-sm" onclick="document.getElementById('weldComparisonSection').scrollIntoView({behavior:'smooth'});" style="vertical-align:middle;border:1px solid var(--border);">Compare All Processes →</button>
+                <div style="background:#e6f7e6;padding:12px 16px;border-radius:8px;margin-top:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                    <div style="font-size:1.05em;">
+                        <strong>Total Welding Cost:</strong> RM <span id="weldTotalCostResult">0.00</span>
+                        &nbsp;|&nbsp; <strong>Cost/Joint:</strong> RM <span id="weldCostPerJoint">0.00</span>
+                        &nbsp;|&nbsp; <strong>Cost/m:</strong> RM <span id="weldCostPerMeter">0.00</span>
+                    </div>
+                    <button class="btn btn-sm" onclick="document.getElementById('weldComparisonSection').scrollIntoView({behavior:'smooth'});" style="border:1px solid var(--border);">Compare All Processes →</button>
                 </div>
 
                 <!-- Comparison Table -->

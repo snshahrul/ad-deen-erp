@@ -10248,17 +10248,15 @@ function calcTcalc(type) {
         marketPrice = parseFloat(document.querySelector('.tcalc-market[data-mat="' + type + '"]')?.value) || 0;
     }
     var marketValue = tonnes * marketPrice;
-    var resultHtml = '<div class="tcalc-result-inner">' +
-        '<div class="tcalc-result-label">' + escHtml(desc) + '</div>' +
-        '<div class="tcalc-result-grid">' +
-        '<div><span class="tcalc-result-val">' + kg.toFixed(2) + '</span><span class="tcalc-result-unit">kg</span></div>' +
-        '<div><span class="tcalc-result-val">' + tonnes.toFixed(4) + '</span><span class="tcalc-result-unit">tonnes</span></div>' +
-        '<div><span class="tcalc-result-val" style="color:#f59e0b;">RM ' + marketValue.toFixed(2) + '</span><span class="tcalc-result-unit">@ RM ' + marketPrice + '/t</span></div>' +
-        '</div>';
-    if (kgPerUnit > 0) {
-        resultHtml += '<div class="tcalc-result-perunit">Per unit: ' + kgPerUnit.toFixed(2) + ' kg</div>';
-    }
-    resultHtml += '</div>';
+    var resultHtml = '<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-top:12px;">' +
+        '<div style="background:var(--bg-secondary);padding:6px 12px;border-bottom:1px solid var(--border);font-size:12px;font-weight:600;color:var(--text-muted);">' + escHtml(desc) + '</div>' +
+        '<table class="table" style="width:100%;margin:0;border:0;font-size:13px;">' +
+        '<tbody>' +
+        '<tr><td style="padding:6px 12px;width:50%;">Weight</td><td style="padding:6px 12px;text-align:right;">' + kg.toFixed(2) + ' kg</td></tr>' +
+        '<tr><td style="padding:6px 12px;">Tonnes</td><td style="padding:6px 12px;text-align:right;">' + tonnes.toFixed(4) + ' t</td></tr>' +
+        (marketPrice && marketValue > 0 ? '<tr><td style="padding:6px 12px;">Market Value</td><td style="padding:6px 12px;text-align:right;">RM ' + marketValue.toFixed(2) + ' @ RM ' + marketPrice + '/t</td></tr>' : '') +
+        (kgPerUnit > 0 ? '<tr><td style="padding:6px 12px;">Per Unit</td><td style="padding:6px 12px;text-align:right;">' + kgPerUnit.toFixed(2) + ' kg</td></tr>' : '') +
+        '</tbody></table></div>';
 
     document.getElementById('tcResult-' + type).innerHTML = resultHtml;
     _tcalcLastResult = { desc: desc, kg: kg, tonnes: tonnes, qty: qty, marketValue: marketValue, marketPrice: marketPrice, type: type };
@@ -12871,11 +12869,11 @@ function calculateWeldCost(){
     var costPerJoint = totalCost / jointCount;
     var costPerMeter = totalCost / (length * jointCount / 1000);
 
-    setText('weldVolResult', weldVol_mm3.toFixed(0) + ' mm³');
-    setText('weldMetalResult', metalDep_kg.toFixed(3) + ' kg');
-    setText('weldDepRateResult', depRate_gps.toFixed(2) + ' g/s');
-    setText('weldArcTimeResult', (arcTime_s / 3600).toFixed(3) + ' hr');
-    setText('weldTotalTimeResult', (totalTime_s / 3600).toFixed(3) + ' hr');
+    setText('weldVolResult', weldVol_mm3.toFixed(0));
+    setText('weldMetalResult', metalDep_kg.toFixed(3));
+    setText('weldDepRateResult', depRate_gps.toFixed(2));
+    setText('weldArcTimeResult', (arcTime_s / 3600).toFixed(3));
+    setText('weldTotalTimeResult', (totalTime_s / 3600).toFixed(3));
     setText('weldFillerCostResult', fillerCostTotal.toFixed(2));
     setText('weldLabourCostResult', labourCost.toFixed(2));
     setText('weldOverheadCostResult', overheadCost.toFixed(2));

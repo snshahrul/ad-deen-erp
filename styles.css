@@ -952,6 +952,15 @@
         }
         .mar-signoff-box h5 { font-size: 11px; font-weight: 700; margin-bottom: 8px; }
 
+        /* ===================== CALCULATOR COMPONENTS ===================== */
+        .tcalc-tabs { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:16px; }
+        .tcalc-tab { padding:8px 16px; border:1px solid var(--border); border-radius:6px; background:transparent; cursor:pointer; font-size:12px; font-weight:500; transition:all 0.2s; color:var(--text); }
+        .tcalc-tab:hover { background:var(--primary-light); border-color:var(--secondary); }
+        .tcalc-tab.active { background:var(--secondary); color:#fff; border-color:var(--secondary); }
+        .tcalc-pane { border:1px solid var(--border); border-radius:8px; padding:16px; }
+        .tcalc-result { margin-top:8px; }
+        .tcalc-market-section { border:1px solid var(--border); border-radius:8px; padding:16px; margin-top:16px; }
+
         /* ===================== PERMISSION GATES ===================== */
         .role-Staff .btn-danger,
         .role-Engineer .btn-danger,
