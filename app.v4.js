@@ -6650,6 +6650,23 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
             modal.classList.add('active');
         }
 
+        function onCpoClientChange() {
+            var sel = document.getElementById('cpoClient');
+            if (!sel || !sel.value) return;
+            var clientName = sel.value;
+            var qts = DB.get('quotations').filter(function(q) {
+                return q.customer === clientName && q.status === 'Accepted';
+            });
+            if (qts.length > 0) {
+                var qt = qts[qts.length - 1];
+                var descEl = document.getElementById('cpoDescription');
+                var amountEl = document.getElementById('cpoAmount');
+                if (descEl) descEl.value = qt.subject || qt.description || '';
+                if (amountEl && qt.total) amountEl.value = qt.total;
+                showToast('Auto-filled from quotation ' + qt.id, 'info');
+            }
+        }
+
         function editClientPO(id) {
             var p = DB.getById('clientPOs', id, 'id');
             if (!p) return;
