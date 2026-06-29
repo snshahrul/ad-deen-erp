@@ -12765,15 +12765,18 @@ function switchAccTab(tab){
 function openWeldCostCalculator(){
     var el=document.getElementById('weldCostModal');if(!el)return;
     el.style.display='';el.classList.add('active');
+    updateProcessDefaults();
+    updateJointTypeUI();
     calculateWeldCost();
 }
 function setWeldPreset(){
     var preset=getValue('weldPreset');
     var presets={
-        '6mm-saw':{process:'SAW',thickness:6,rootFace:0,rootGap:0,bevelAngle:60,legLength:6,passes:1,wireDia:3.2,density:7850,current:500,voltage:30,travelSpeed:300,efficiency:0.95,opFactor:1.0},
-        '12mm-saw':{process:'SAW',thickness:12,rootFace:0,rootGap:0,bevelAngle:60,legLength:12,passes:3,wireDia:4,density:7850,current:600,voltage:32,travelSpeed:250,efficiency:0.95,opFactor:1.0},
-        '6mm-mig':{process:'MIG',thickness:6,rootFace:1,rootGap:2,bevelAngle:30,legLength:6,passes:2,wireDia:1.2,density:7850,current:250,voltage:28,travelSpeed:400,efficiency:0.9,opFactor:1.0},
-        '12mm-mig':{process:'MIG',thickness:12,rootFace:1,rootGap:2,bevelAngle:45,legLength:12,passes:4,wireDia:1.2,density:7850,current:280,voltage:30,travelSpeed:300,efficiency:0.9,opFactor:1.0}
+        'light':{process:'GMAW',thickness:4,rootFace:1,rootGap:2,bevelAngle:30,legLength:4,passes:1,wireDia:1.2,density:7.85,current:180,voltage:24,travelSpeed:400,efficiency:85,opFactor:1.0},
+        'medium':{process:'GMAW',thickness:10,rootFace:2,rootGap:3,bevelAngle:30,legLength:8,passes:3,wireDia:1.2,density:7.85,current:250,voltage:28,travelSpeed:350,efficiency:85,opFactor:1.0},
+        'heavy':{process:'SAW',thickness:25,rootFace:3,rootGap:0,bevelAngle:45,legLength:25,passes:6,wireDia:4.0,density:7.85,current:550,voltage:32,travelSpeed:250,efficiency:90,opFactor:1.0},
+        'pipeSch40':{process:'GMAW',thickness:7,rootFace:1,rootGap:2,bevelAngle:30,legLength:7,passes:2,wireDia:1.2,density:7.85,current:220,voltage:26,travelSpeed:350,efficiency:85,opFactor:1.0},
+        'pipeSch80':{process:'SMAW',thickness:10,rootFace:1,rootGap:3,bevelAngle:30,legLength:10,passes:3,wireDia:3.2,density:7.85,current:140,voltage:24,travelSpeed:200,efficiency:75,opFactor:1.2}
     };
     var p=presets[preset];
     if(!p)return;
@@ -12781,92 +12784,162 @@ function setWeldPreset(){
     updateJointTypeUI();calculateWeldCost();
 }
 function updateJointTypeUI(){
-    var jt=getValue('weldJointType');
-    var butt=document.getElementById('weldButtParams');
-    var fillet=document.getElementById('weldFilletParams');
-    var pipe=document.getElementById('weldPipeParams');
-    if(butt)butt.style.display=(jt==='Butt')?'block':'none';
-    if(fillet)fillet.style.display=(jt==='Fillet')?'block':'none';
-    if(pipe)pipe.style.display=(jt==='Pipe')?'block':'none';
+    var jt = getValue('weldJointType');
+    var buttVals = ['singleV','doubleV','singleU','doubleU','singleBevel','doubleBevel'];
+    var pipeVals = ['singleVpipe','doubleVpipe'];
+    var isButt = buttVals.indexOf(jt) >= 0;
+    var isFillet = jt === 'fillet';
+    var isPipe = pipeVals.indexOf(jt) >= 0;
+    var ids = { butt:['weldRootFace','weldRootGap','weldBevelAngle'], fillet:['weldLegLength'], pipe:['weldPipeOD','weldPipeWall'] };
+    function toggle(id, show){
+        var el = document.getElementById(id);
+        if(el && el.parentElement) el.parentElement.style.display = show ? '' : 'none';
+    }
+    for(var i=0;i<ids.butt.length;i++) toggle(ids.butt[i], isButt || isPipe);
+    for(var i=0;i<ids.fillet.length;i++) toggle(ids.fillet[i], isFillet);
+    for(var i=0;i<ids.pipe.length;i++) toggle(ids.pipe[i], isPipe);
 }
 function updateProcessDefaults(){
     var proc=getValue('weldProcess');
-    var defaults={SMAW:{current:120,voltage:25,travelSpeed:200,efficiency:0.85,opFactor:1.2},MIG:{current:250,voltage:28,travelSpeed:400,efficiency:0.9,opFactor:1.0},TIG:{current:150,voltage:20,travelSpeed:150,efficiency:0.8,opFactor:1.3},SAW:{current:500,voltage:30,travelSpeed:300,efficiency:0.95,opFactor:1.0}};
+    var defaults={SMAW:{current:120,voltage:25,travelSpeed:200,efficiency:85,opFactor:1.2},GMAW:{current:250,voltage:28,travelSpeed:400,efficiency:85,opFactor:1.0},GTAW:{current:150,voltage:20,travelSpeed:150,efficiency:75,opFactor:1.3},FCAW:{current:220,voltage:26,travelSpeed:350,efficiency:85,opFactor:1.1},SAW:{current:500,voltage:30,travelSpeed:300,efficiency:90,opFactor:1.0}};
     var d=defaults[proc]||defaults.SMAW;
     setVal('weldCurrent',d.current);setVal('weldVoltage',d.voltage);setVal('weldTravelSpeed',d.travelSpeed);setVal('weldEfficiency',d.efficiency);setVal('weldOpFactor',d.opFactor);
 }
 function calculateWeldCost(){
-    var jt=getValue('weldJointType');
-    var thickness=parseFloat(getValue('weldThickness'))||6;
-    var rootFace=parseFloat(getValue('weldRootFace'))||0;
-    var rootGap=parseFloat(getValue('weldRootGap'))||0;
-    var bevelAngle=parseFloat(getValue('weldBevelAngle'))||30;
-    var legLength=parseFloat(getValue('weldLegLength'))||thickness;
-    var length=parseFloat(getValue('weldLength'))||1000;
-    var jointCount=parseInt(getValue('weldJointCount'))||1;
-    var passes=parseInt(getValue('weldPasses'))||1;
-    var wireDia=parseFloat(getValue('weldWireDia'))||1.2;
-    var density=parseFloat(getValue('weldDensity'))||7850;
-    var current=parseFloat(getValue('weldCurrent'))||200;
-    var voltage=parseFloat(getValue('weldVoltage'))||25;
-    var travelSpeed=parseFloat(getValue('weldTravelSpeed'))||300;
-    var efficiency=parseFloat(getValue('weldEfficiency'))||0.9;
-    var opFactor=parseFloat(getValue('weldOpFactor'))||1.0;
-    var fillerCost=parseFloat(getValue('weldFillerCost'))||5;
-    var labourRate=parseFloat(getValue('weldLabourRate'))||50;
-    var overheadRate=parseFloat(getValue('weldOverheadRate'))||20;
-    var powerCostRate=parseFloat(getValue('weldPowerCost'))||0.1;
-    var gasCostRate=parseFloat(getValue('weldGasCost'))||0;
-    var consumableCostRate=parseFloat(getValue('weldConsumableCost'))||0;
-    var prepCost=parseFloat(getValue('weldPrepCost'))||0;
-    var weldVol=0,metalDep=0;
-    if(jt==='Fillet'){
-        weldVol=legLength*legLength*0.5*length/1000;
-        metalDep=legLength*legLength*0.5*density/1000000;
-    }else if(jt==='Pipe'){
-        var pipeOD=parseFloat(getValue('weldPipeOD'))||100;
-        var pipeWall=parseFloat(getValue('weldPipeWall'))||6;
-        weldVol=Math.PI*pipeOD*pipeWall*length/1000000;
-        metalDep=Math.PI*pipeOD*pipeWall*density/1000000000;
-    }else{
-        weldVol=thickness*thickness*0.5*Math.tan(bevelAngle*Math.PI/180)*length/1000;
-        metalDep=thickness*thickness*0.5*density/1000000;
+    var jt = getValue('weldJointType');
+    var thickness = parseFloat(getValue('weldThickness')) || 6;
+    var rootFace = parseFloat(getValue('weldRootFace')) || 0;
+    var rootGap = parseFloat(getValue('weldRootGap')) || 0;
+    var bevelAngle = parseFloat(getValue('weldBevelAngle')) || 30;
+    var legLength = parseFloat(getValue('weldLegLength')) || thickness;
+    var length = parseFloat(getValue('weldLength')) || 1000;
+    var jointCount = parseInt(getValue('weldJointCount')) || 1;
+    var passes = parseInt(getValue('weldPasses')) || 1;
+    var wireDia = parseFloat(getValue('weldWireDia')) || 1.2;
+    var densityInput = parseFloat(getValue('weldDensity')) || 7.85;
+    var density = densityInput; // g/cm³ — used consistently with mm³ conversions below
+    var current = parseFloat(getValue('weldCurrent')) || 200;
+    var voltage = parseFloat(getValue('weldVoltage')) || 25;
+    var travelSpeed = parseFloat(getValue('weldTravelSpeed')) || 300;
+    var efficiencyInput = parseFloat(getValue('weldEfficiency')) || 85;
+    var efficiency = efficiencyInput / 100;
+    var opFactor = parseFloat(getValue('weldOpFactor')) || 1.0;
+    var fillerCost = parseFloat(getValue('weldFillerCost')) || 5;
+    var labourRate = parseFloat(getValue('weldLabourRate')) || 50;
+    var overheadRate = parseFloat(getValue('weldOverheadRate')) || 20;
+    var powerCostRate = parseFloat(getValue('weldPowerCost')) || 0.1;
+    var gasCostRate = parseFloat(getValue('weldGasCost')) || 0;
+    var consumableCostRate = parseFloat(getValue('weldConsumableCost')) || 0;
+    var prepCost = parseFloat(getValue('weldPrepCost')) || 0;
+    var pipeOD = parseFloat(getValue('weldPipeOD')) || 168.3;
+    var pipeWall = parseFloat(getValue('weldPipeWall')) || 7.1;
+
+    var buttVals = ['singleV','doubleV','singleU','doubleU','singleBevel','doubleBevel'];
+    var pipeVals = ['singleVpipe','doubleVpipe'];
+    var isButt = buttVals.indexOf(jt) >= 0;
+    var isFillet = jt === 'fillet';
+    var isPipe = pipeVals.indexOf(jt) >= 0;
+    var factorMap = {singleV:1, doubleV:0.5, singleU:0.85, doubleU:0.425, singleBevel:0.5, doubleBevel:0.25, singleVpipe:1, doubleVpipe:0.5};
+    var factor = factorMap[jt] || 1;
+
+    var crossSection = 0;
+    if(isFillet){
+        crossSection = legLength * legLength * 0.5;
+    } else {
+        var vArea = factor * (thickness - rootFace) * (thickness - rootFace) * Math.tan(bevelAngle * Math.PI / 180);
+        var gapArea = rootGap * (thickness - rootFace);
+        crossSection = vArea + gapArea;
     }
-    var depRate=Math.PI*(wireDia/2)*(wireDia/2)*travelSpeed*density*efficiency/1000000;
-    var arcTime=depRate>0?(weldVol/depRate)*passes*60:0;
-    var totalTime=arcTime*opFactor;
-    var fillerCostTotal=weldVol*density/1000000*fillerCost*passes;
-    var labourCost=totalTime/3600*labourRate;
-    var overheadCost=totalTime/3600*overheadRate;
-    var powerCost=current*voltage*arcTime/3600*powerCostRate;
-    var gasCost=totalTime/3600*gasCostRate;
-    var consumableCost=totalTime/3600*consumableCostRate;
-    var totalPrep=prepCost*jointCount;
-    var totalCost=fillerCostTotal+labourCost+overheadCost+powerCost+gasCost+consumableCost+totalPrep;
-    var costPerJoint=totalCost/jointCount;
-    var costPerMeter=totalCost/(length*jointCount/1000);
-    setText('weldVolResult',weldVol.toFixed(1)+' mm3');
-    setText('weldMetalResult',metalDep.toFixed(3)+' kg');
-    setText('weldDepRateResult',depRate.toFixed(1)+' g/s');
-    setText('weldArcTimeResult',arcTime.toFixed(1)+' s');
-    setText('weldTotalTimeResult',totalTime.toFixed(1)+' s');
-    setText('weldFillerCostResult','$'+fillerCostTotal.toFixed(2));
-    setText('weldLabourCostResult','$'+labourCost.toFixed(2));
-    setText('weldOverheadCostResult','$'+overheadCost.toFixed(2));
-    setText('weldPowerCostResult','$'+powerCost.toFixed(2));
-    setText('weldGasCostResult','$'+gasCost.toFixed(2));
-    setText('weldConsumableCostResult','$'+consumableCost.toFixed(2));
-    setText('weldPrepCostResult','$'+totalPrep.toFixed(2));
-    setText('weldTotalCostResult','$'+totalCost.toFixed(2));
-    setText('weldCostPerJoint','$'+costPerJoint.toFixed(2));
-    setText('weldCostPerMeter','$'+costPerMeter.toFixed(2));
+
+    var weldVol_mm3 = crossSection * length;
+    var metalDep_kg = weldVol_mm3 / 1000 * density / 1000;
+
+    var wireArea = Math.PI * (wireDia / 2) * (wireDia / 2);
+    var depRate_gps = wireArea * (travelSpeed / 60) * efficiency * density / 1000;
+
+    var arcTime_s = depRate_gps > 0 ? (metalDep_kg * 1000 / depRate_gps) * passes : 0;
+    var totalTime_s = arcTime_s * opFactor;
+
+    var fillerCostTotal = metalDep_kg * fillerCost * passes;
+    var labourCost = totalTime_s / 3600 * labourRate;
+    var overheadCost = totalTime_s / 3600 * overheadRate;
+    var powerCost = current * voltage * arcTime_s / 3600000 * powerCostRate;
+    var gasCost = totalTime_s / 3600 * gasCostRate;
+    var consumableCost = totalTime_s / 3600 * consumableCostRate;
+    var totalPrep = prepCost * jointCount;
+    var totalCost = fillerCostTotal + labourCost + overheadCost + powerCost + gasCost + consumableCost + totalPrep;
+    var costPerJoint = totalCost / jointCount;
+    var costPerMeter = totalCost / (length * jointCount / 1000);
+
+    setText('weldVolResult', weldVol_mm3.toFixed(0) + ' mm³');
+    setText('weldMetalResult', metalDep_kg.toFixed(3) + ' kg');
+    setText('weldDepRateResult', depRate_gps.toFixed(2) + ' g/s');
+    setText('weldArcTimeResult', (arcTime_s / 3600).toFixed(3) + ' hr');
+    setText('weldTotalTimeResult', (totalTime_s / 3600).toFixed(3) + ' hr');
+    setText('weldFillerCostResult', fillerCostTotal.toFixed(2));
+    setText('weldLabourCostResult', labourCost.toFixed(2));
+    setText('weldOverheadCostResult', overheadCost.toFixed(2));
+    setText('weldPowerCostResult', powerCost.toFixed(2));
+    setText('weldGasCostResult', gasCost.toFixed(2));
+    setText('weldConsumableCostResult', consumableCost.toFixed(2));
+    setText('weldPrepCostResult', totalPrep.toFixed(2));
+    setText('weldTotalCostResult', totalCost.toFixed(2));
+    setText('weldCostPerJoint', costPerJoint.toFixed(2));
+    setText('weldCostPerMeter', costPerMeter.toFixed(2));
+    populateWeldComparison();
+}
+function populateWeldComparison(){
+    var tbody = document.getElementById('weldComparisonBody');
+    if(!tbody) return;
+    var jt = getValue('weldJointType');
+    var thickness = parseFloat(getValue('weldThickness')) || 6;
+    var rootFace = parseFloat(getValue('weldRootFace')) || 0;
+    var rootGap = parseFloat(getValue('weldRootGap')) || 0;
+    var bevelAngle = parseFloat(getValue('weldBevelAngle')) || 30;
+    var legLength = parseFloat(getValue('weldLegLength')) || thickness;
+    var length = parseFloat(getValue('weldLength')) || 1000;
+    var jointCount = parseInt(getValue('weldJointCount')) || 1;
+    var passes = parseInt(getValue('weldPasses')) || 1;
+    var pipeOD = parseFloat(getValue('weldPipeOD')) || 168.3;
+    var pipeWall = parseFloat(getValue('weldPipeWall')) || 7.1;
+    var buttVals = ['singleV','doubleV','singleU','doubleU','singleBevel','doubleBevel'];
+    var pipeVals = ['singleVpipe','doubleVpipe'];
+    var isButt = buttVals.indexOf(jt) >= 0;
+    var isFillet = jt === 'fillet';
+    var isPipe = pipeVals.indexOf(jt) >= 0;
+    var factorMap = {singleV:1, doubleV:0.5, singleU:0.85, doubleU:0.425, singleBevel:0.5, doubleBevel:0.25, singleVpipe:1, doubleVpipe:0.5};
+    var factor = factorMap[jt] || 1;
+    var crossSection = 0;
+    if(isFillet){ crossSection = legLength * legLength * 0.5; }
+    else { crossSection = factor * (thickness - rootFace) * (thickness - rootFace) * Math.tan(bevelAngle * Math.PI / 180) + rootGap * (thickness - rootFace); }
+    var weldVol_mm3 = crossSection * length;
+    var metalDep_kg = weldVol_mm3 / 1000 * 7.85 / 1000;
+    var allProcs = ['SMAW','GMAW','GTAW','FCAW','SAW'];
+    var procDefs = {SMAW:{wireDia:3.2,travelSpeed:200,current:120,voltage:25,efficiency:85,opFactor:1.2,passes:passes},GMAW:{wireDia:1.2,travelSpeed:400,current:250,voltage:28,efficiency:85,opFactor:1.0,passes:passes},GTAW:{wireDia:2.4,travelSpeed:150,current:150,voltage:20,efficiency:75,opFactor:1.3,passes:passes},FCAW:{wireDia:1.6,travelSpeed:350,current:220,voltage:26,efficiency:85,opFactor:1.1,passes:passes},SAW:{wireDia:4.0,travelSpeed:300,current:500,voltage:30,efficiency:90,opFactor:1.0,passes:Math.max(passes,1)}};
+    var html = '';
+    for(var p=0;p<allProcs.length;p++){
+        var key = allProcs[p];
+        var d = procDefs[key];
+        var eff = d.efficiency/100;
+        var wireArea = Math.PI*(d.wireDia/2)*(d.wireDia/2);
+        var depRate_gps = wireArea*(d.travelSpeed/60)*eff*7.85/1000;
+        var depRate_kgph = depRate_gps * 3.6;
+        var mdep = metalDep_kg * d.passes;
+        var arcTime = depRate_gps>0 ? (mdep*1000/depRate_gps) : 0;
+        var totalTime = arcTime * d.opFactor;
+        var fillerCost = mdep * 25;
+        var labourCost = totalTime/3600*35;
+        var total = fillerCost + labourCost;
+        html += '<tr><td>'+key+'</td><td>'+weldVol_mm3.toFixed(0)+'</td><td>'+mdep.toFixed(3)+'</td><td>'+depRate_kgph.toFixed(2)+'</td><td>'+(arcTime/3600).toFixed(3)+'</td><td>'+(totalTime/3600).toFixed(3)+'</td><td>'+fillerCost.toFixed(2)+'</td><td>'+labourCost.toFixed(2)+'</td><td>'+total.toFixed(2)+'</td></tr>';
+    }
+    tbody.innerHTML = html;
 }
 function addWeldCostToQuote(){
-    var total=parseFloat(getText('weldTotalCostResult').replace('$',''))||0;
+    var total=parseFloat(getText('weldTotalCostResult'))||0;
     var jt=getValue('weldJointType');
     var proc=getValue('weldProcess');
     if(total<=0){alert('Calculate weld cost first');return;}
-    if(!confirm('Add weld cost ($'+total.toFixed(2)+') to current quotation?'))return;
+    if(!confirm('Add weld cost (RM '+total.toFixed(2)+') to current quotation?'))return;
     var qtId=window._editingQtId||null;
     if(!qtId){
         alert('Open a quotation first, then click Add to Quotation');

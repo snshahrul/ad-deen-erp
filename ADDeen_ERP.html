@@ -6429,8 +6429,8 @@ document.addEventListener('click', function(event) {
                         <input type="number" class="form-input" id="weldEfficiency" value="65" min="10" step="1" oninput="calculateWeldCost()">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Operating Factor (%)</label>
-                        <input type="number" class="form-input" id="weldOpFactor" value="40" min="5" step="1" oninput="calculateWeldCost()">
+                        <label class="form-label">Operator Factor</label>
+                        <input type="number" class="form-input" id="weldOpFactor" value="1.0" min="0.1" step="0.1" oninput="calculateWeldCost()">
                     </div>
                     <div class="form-group">
                         <label class="form-label"># Passes</label>
@@ -6499,11 +6499,11 @@ document.addEventListener('click', function(event) {
                     <strong>Total Welding Cost:</strong> RM <span id="weldTotalCostResult">0.00</span>
                     &nbsp;|&nbsp; <strong>Cost per Joint:</strong> RM <span id="weldCostPerJoint">0.00</span>
                     &nbsp;|&nbsp; <strong>Cost per Metre:</strong> RM <span id="weldCostPerMeter">0.00</span>
+                    &nbsp; <button class="btn btn-sm" onclick="document.getElementById('weldComparisonSection').scrollIntoView({behavior:'smooth'});" style="vertical-align:middle;border:1px solid var(--border);">Compare All Processes →</button>
                 </div>
 
                 <!-- Comparison Table -->
-                <hr style="margin:16px 0;">
-                <h4>Process Comparison</h4>
+                <hr style="margin:16px 0;" id="weldComparisonSection">
                 <table class="table" style="width:100%;font-size:0.85em;">
                     <thead>
                         <tr>
