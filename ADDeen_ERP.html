@@ -214,6 +214,7 @@ document.addEventListener('click', function(event) {
             <div class="modal-body">
                 <p style="color:var(--text-secondary);margin-bottom:16px;font-size:13px;">This is your first login. Please set a new password to continue.</p>
                 <form onsubmit="return false">
+                <input type="text" id="forcePwUsername" autocomplete="username" style="position:absolute;opacity:0;pointer-events:none;height:0;width:0;">
                 <div class="form-group">
                     <label class="form-label">Current Password</label>
                     <input type="password" class="form-control" id="forcePwCurrent" placeholder="Enter current password" autocomplete="current-password">
@@ -5066,6 +5067,7 @@ document.addEventListener('click', function(event) {
                 <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border);">
                     <h4 style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--text);">Change Password</h4>
                     <form onsubmit="return false">
+                    <input type="text" autocomplete="username" style="position:absolute;opacity:0;pointer-events:none;height:0;width:0;">
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">New Password</label>
