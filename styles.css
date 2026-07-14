@@ -652,6 +652,34 @@
         }
         .menu-toggle:hover { background: var(--border); }
 
+        /* ===================== SIDEBAR COLLAPSE ===================== */
+        .sidebar-collapse-btn {
+            display: flex; align-items: center; justify-content: center;
+            width: 32px; height: 32px; border-radius: 6px;
+            background: var(--bg); border: 1px solid var(--border);
+            cursor: pointer; font-size: 14px; font-weight: 700; color: var(--text);
+            transition: var(--transition);
+        }
+        .sidebar-collapse-btn:hover { background: var(--border); }
+
+        .sidebar-collapsed .sidebar { width: 60px; }
+        .sidebar-collapsed .sidebar-brand .brand-text { display: none; }
+        .sidebar-collapsed .sidebar-nav .nav-section { display: none; }
+        .sidebar-collapsed .sidebar-nav .nav-item { padding: 7px 0; justify-content: center; margin: 1px 6px; }
+        .sidebar-collapsed .sidebar-nav .nav-item .nav-label { display: none; }
+        .sidebar-collapsed .sidebar-nav .nav-item .nav-icon { width: auto; }
+        .sidebar-collapsed .sidebar-footer .sf-info { display: none; }
+        .sidebar-collapsed .sidebar-footer { justify-content: center; padding: 10px 6px; }
+        .sidebar-collapsed .sidebar-footer .sf-logout { display: none; }
+        .sidebar-collapsed .sidebar .sidebar-brand { padding: 12px 0; justify-content: center; }
+        .sidebar-collapsed .header { left: 60px; }
+        .sidebar-collapsed .main-content { margin-left: 60px; }
+        .sidebar-collapsed .sidebar-nav .nav-item.active::before { left: -6px; }
+
+        .sidebar .sidebar-brand { transition: var(--transition); }
+        .sidebar .sidebar-nav .nav-item { transition: var(--transition); }
+        .sidebar .sidebar-footer { transition: var(--transition); }
+
         /* ===================== FAB WIZARD ===================== */
         .fab-step-dot {
             width: 24px; height: 24px; border-radius: 50%;

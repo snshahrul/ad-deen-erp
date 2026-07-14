@@ -3186,6 +3186,30 @@ window.addEventListener('DOMContentLoaded', function() {
             document.getElementById('sidebarOverlay').classList.toggle('show');
         }
 
+        function toggleSidebarCollapse() {
+            var container = document.getElementById('appContainer');
+            var btn = document.getElementById('sidebarCollapseBtn');
+            container.classList.toggle('sidebar-collapsed');
+            var collapsed = container.classList.contains('sidebar-collapsed');
+            btn.textContent = collapsed ? '»' : '«';
+            btn.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+            try { localStorage.setItem('erp_sidebar_collapsed', collapsed ? '1' : '0'); } catch(e) {}
+        }
+
+        // Restore sidebar state on load
+        (function() {
+            try {
+                if (localStorage.getItem('erp_sidebar_collapsed') === '1') {
+                    var container = document.getElementById('appContainer');
+                    if (container) {
+                        container.classList.add('sidebar-collapsed');
+                        var btn = document.getElementById('sidebarCollapseBtn');
+                        if (btn) { btn.textContent = '»'; btn.title = 'Expand sidebar'; }
+                    }
+                }
+            } catch(e) {}
+        })();
+
         // ========================================================================
         //  MODAL FUNCTIONS
         // ========================================================================
