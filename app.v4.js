@@ -3683,6 +3683,7 @@ window.addEventListener('DOMContentLoaded', function() {
                     '<td>' + (e.serialNo || '-') + '</td>' +
                     '<td>' + (e.yearMfg || '-') + '</td>' +
                     '<td>' + (e.lastRepair || '-') + '</td>' +
+                    '<td>' + (e.certFitExpiry || '-') + '</td>' +
                     '<td>' + (e.designPressure || '-') + '</td>' +
                     '<td>' + (e.designTemp || '-') + '</td>' +
                     '<td>' + (cust ? cust.company : '-') + '</td>' +
@@ -3702,6 +3703,7 @@ window.addEventListener('DOMContentLoaded', function() {
             document.getElementById('equipSerialNo').value = '';
             document.getElementById('equipYearMfg').value = '';
             document.getElementById('equipLastRepair').value = '';
+            document.getElementById('equipCertFitExpiry').value = '';
             document.getElementById('equipDesignPressure').value = '';
             document.getElementById('equipDesignTemp').value = '';
             document.getElementById('equipAssignedTo').value = '';
@@ -3721,6 +3723,7 @@ window.addEventListener('DOMContentLoaded', function() {
             document.getElementById('equipSerialNo').value = e.serialNo || '';
             document.getElementById('equipYearMfg').value = e.yearMfg || '';
             document.getElementById('equipLastRepair').value = e.lastRepair || '';
+            document.getElementById('equipCertFitExpiry').value = e.certFitExpiry || '';
             document.getElementById('equipDesignPressure').value = e.designPressure || '';
             document.getElementById('equipDesignTemp').value = e.designTemp || '';
             const sel = document.getElementById('equipCustomer');
@@ -3741,6 +3744,7 @@ window.addEventListener('DOMContentLoaded', function() {
                 serialNo: document.getElementById('equipSerialNo').value.trim(),
                 yearMfg: document.getElementById('equipYearMfg').value,
                 lastRepair: document.getElementById('equipLastRepair').value,
+                certFitExpiry: document.getElementById('equipCertFitExpiry').value,
                 designPressure: document.getElementById('equipDesignPressure').value,
                 designTemp: document.getElementById('equipDesignTemp').value,
                 customerId: document.getElementById('equipCustomer').value,
