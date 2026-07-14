@@ -981,12 +981,13 @@
         .mar-signoff-box h5 { font-size: 11px; font-weight: 700; margin-bottom: 8px; }
 
         /* ===================== CALCULATOR COMPONENTS ===================== */
-        .tcalc-tabs { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:16px; }
-        .tcalc-tab { padding:8px 16px; border:1px solid var(--border); border-radius:6px; background:transparent; cursor:pointer; font-size:12px; font-weight:500; transition:all 0.2s; color:var(--text); }
-        .tcalc-tab:hover { background:var(--primary-light); border-color:var(--secondary); }
-        .tcalc-tab.active { background:var(--secondary); color:#fff; border-color:var(--secondary); }
-        .tcalc-pane { border:1px solid var(--border); border-radius:8px; padding:16px; }
-        .tcalc-result { margin-top:8px; }
+        .tcalc-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:20px; padding-bottom:12px; border-bottom:1px solid var(--border); }
+        .tcalc-tab { padding:8px 18px; border:1px solid var(--border); border-radius:8px; background:transparent; cursor:pointer; font-size:12px; font-weight:600; transition:all 0.2s; color:var(--text); }
+        .tcalc-tab:hover { background:var(--primary-light); border-color:var(--secondary); color:var(--secondary); }
+        .tcalc-tab.active { background:var(--secondary); color:#fff; border-color:var(--secondary); box-shadow:0 2px 8px rgba(6,182,212,0.3); }
+        .tcalc-pane { border:1px solid var(--border); border-radius:var(--radius); padding:20px; background:var(--bg); }
+        .tcalc-pane h4 { font-size:14px; font-weight:700; margin:0 0 14px 0; padding-bottom:8px; border-bottom:2px solid var(--secondary); color:var(--text); }
+        .tcalc-result { margin-top:12px; }
         .tcalc-market-section { border:1px solid var(--border); border-radius:8px; padding:16px; margin-top:16px; }
 
         /* ===================== REPORT SECTIONS (PV CALC etc) ===================== */

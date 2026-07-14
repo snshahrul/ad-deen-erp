@@ -1185,7 +1185,7 @@ document.addEventListener('click', function(event) {
                 </div>
                 <div class="action-bar" style="margin:16px 0;display:flex;gap:8px;flex-wrap:wrap;">
                     <button class="btn btn-primary" onclick="openSalesNewOrderModal()">+ New Sales Order</button>
-                    <button class="btn btn-secondary" onclick="openQuotationModal()">📄 + New Quotation</button>
+                    <button class="btn btn-info" onclick="openQuotationModal()">📄 + New Quotation</button>
                     <button class="btn btn-info" onclick="openTonnesCalc()">⚖️ Tonnes Calculator</button>
                     <button class="btn btn-primary" onclick="openPVCalculator()">🔧 PV Calculator</button>
                     <button class="btn btn-warning" onclick="openWeldCostCalculator()">💰 Welding Cost Calculator</button>
@@ -6286,8 +6286,8 @@ document.addEventListener('click', function(event) {
                 <button class="modal-close" onclick="closeModal('weldCostModal')">x</button>
             </div>
             <div class="modal-body" style="max-height:80vh;overflow-y:auto;">
-                <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px;">
-                    <div style="background:var(--bg-secondary);padding:8px 16px;border-bottom:1px solid var(--border);font-weight:600;font-size:13px;">Joint Configuration</div>
+                <div class="report-section">
+                    <h4 class="report-section-title">⚙️ Joint Configuration</h4>
                     <div style="padding:12px;">
                         <div class="form-row-3">
                             <div class="form-group">
@@ -6329,8 +6329,8 @@ document.addEventListener('click', function(event) {
                     </div>
                 </div>
 
-                <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px;">
-                    <div style="background:var(--bg-secondary);padding:8px 16px;border-bottom:1px solid var(--border);font-weight:600;font-size:13px;">Geometry Parameters</div>
+                <div class="report-section">
+                    <h4 class="report-section-title">📐 Geometry Parameters</h4>
                     <div style="padding:12px;">
                         <div class="form-row-3" id="weldGeometryParams">
                             <div class="form-group">
@@ -6373,8 +6373,8 @@ document.addEventListener('click', function(event) {
                     </div>
                 </div>
 
-                <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px;">
-                    <div style="background:var(--bg-secondary);padding:8px 16px;border-bottom:1px solid var(--border);font-weight:600;font-size:13px;">Welding Parameters</div>
+                <div class="report-section">
+                    <h4 class="report-section-title">⚡ Welding Parameters</h4>
                     <div style="padding:12px;">
                         <div class="form-row-3">
                             <div class="form-group">
@@ -6417,8 +6417,8 @@ document.addEventListener('click', function(event) {
                     </div>
                 </div>
 
-                <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px;">
-                    <div style="background:var(--bg-secondary);padding:8px 16px;border-bottom:1px solid var(--border);font-weight:600;font-size:13px;">Labour &amp; Overhead</div>
+                <div class="report-section">
+                    <h4 class="report-section-title">💰 Labour &amp; Overhead</h4>
                     <div style="padding:12px;">
                         <div class="form-row-3">
                             <div class="form-group">
@@ -6449,10 +6449,8 @@ document.addEventListener('click', function(event) {
                     </div>
                 </div>
 
-                <!-- Results -->
-                <hr style="margin:16px 0;">
-                <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;">
-                    <div style="background:var(--bg-secondary);padding:8px 16px;border-bottom:1px solid var(--border);font-weight:600;font-size:13px;">Weld Metrics</div>
+                <div class="report-section">
+                    <h4 class="report-section-title">📊 Weld Metrics</h4>
                     <table class="table" style="width:100%;margin:0;border:0;">
                         <tbody>
                             <tr><td style="width:50%;padding:6px 16px;">Weld Volume</td><td style="width:50%;text-align:right;padding:6px 16px;"><span id="weldVolResult">0</span> mm³</td></tr>
@@ -6462,7 +6460,7 @@ document.addEventListener('click', function(event) {
                             <tr style="border-bottom:2px solid var(--border);"><td style="padding:6px 16px;">Total Time</td><td style="text-align:right;padding:6px 16px;"><span id="weldTotalTimeResult">0</span> hr</td></tr>
                         </tbody>
                     </table>
-                    <div style="background:var(--bg-secondary);padding:8px 16px;border-bottom:1px solid var(--border);font-weight:600;font-size:13px;">Cost Breakdown</div>
+                    <h4 class="report-section-title" style="border-bottom:none;margin-top:16px;">💰 Cost Breakdown</h4>
                     <table class="table" style="width:100%;margin:0;border:0;">
                         <tbody>
                             <tr><td style="width:50%;padding:6px 16px;">Filler Cost</td><td style="width:50%;text-align:right;padding:6px 16px;">RM <span id="weldFillerCostResult">0.00</span></td></tr>
@@ -6485,8 +6483,9 @@ document.addEventListener('click', function(event) {
                 </div>
 
                 <!-- Comparison Table -->
-                <hr style="margin:16px 0;" id="weldComparisonSection">
-                <table class="table" style="width:100%;font-size:0.85em;">
+                <div class="report-section" id="weldComparisonSection">
+                    <h4 class="report-section-title">📊 Process Comparison</h4>
+                    <table class="table" style="width:100%;font-size:0.85em;">
                     <thead>
                         <tr>
                             <th>Process</th>
@@ -6504,6 +6503,7 @@ document.addEventListener('click', function(event) {
                         <tr><td colspan="9" style="text-align:center;">Calculate to see comparison</td></tr>
                     </tbody>
                 </table>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-primary" onclick="addWeldCostToQuote()">[+] Add to Quotation</button>
