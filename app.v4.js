@@ -6681,6 +6681,8 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
             DB.get('customers').forEach(function(c) {
                 sel.innerHTML += '<option value="' + escHtml(c.company || c.name) + '">' + escHtml(c.company || c.name) + ' — ' + escHtml(c.name) + '</option>';
             });
+            var qtSel = document.getElementById('cpoQuotation');
+            if (qtSel) qtSel.innerHTML = '<option value="">-- Select Quotation --</option>';
             modal.style.display = 'flex';
             modal.classList.add('active');
         }
@@ -6689,6 +6691,20 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
             var sel = document.getElementById('cpoClient');
             if (!sel || !sel.value) return;
             var clientName = sel.value;
+            var qtSel = document.getElementById('cpoQuotation');
+            if (qtSel) {
+                qtSel.innerHTML = '<option value="">-- Select Quotation --</option>';
+                var qts = DB.get('quotations').filter(function(q) {
+                    return q.customer === clientName;
+                });
+                qts.forEach(function(q) {
+                    var label = (q.id || '') + ' - ' + (q.subject || q.description || 'No subject');
+                    if (q.total) label += ' (RM ' + parseFloat(q.total).toLocaleString() + ')';
+                    if (q.status) label += ' [' + q.status + ']';
+                    qtSel.innerHTML += '<option value="' + q.id + '">' + escHtml(label) + '</option>';
+                });
+            }
+            // Also auto-fill from latest accepted quotation
             var qts = DB.get('quotations').filter(function(q) {
                 return q.customer === clientName && q.status === 'Accepted';
             });
@@ -6698,8 +6714,23 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
                 var amountEl = document.getElementById('cpoAmount');
                 if (descEl) descEl.value = qt.subject || qt.description || '';
                 if (amountEl && qt.total) amountEl.value = qt.total;
+                if (qtSel) qtSel.value = qt.id;
                 showToast('Auto-filled from quotation ' + qt.id, 'info');
             }
+        }
+
+        function onCpoQuotationChange() {
+            var qtSel = document.getElementById('cpoQuotation');
+            if (!qtSel || !qtSel.value) return;
+            var qt = DB.getById('quotations', qtSel.value, 'id');
+            if (!qt) return;
+            var descEl = document.getElementById('cpoDescription');
+            var amountEl = document.getElementById('cpoAmount');
+            var dateEl = document.getElementById('cpoDate');
+            if (descEl) descEl.value = qt.subject || qt.description || '';
+            if (amountEl && qt.total) amountEl.value = qt.total;
+            if (dateEl && qt.date) dateEl.value = qt.date;
+            showToast('Auto-filled from quotation ' + qt.id, 'info');
         }
 
         function editClientPO(id) {
@@ -6717,6 +6748,23 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
                 sel.innerHTML += '<option value="' + escHtml(c.company || c.name) + '">' + escHtml(c.company || c.name) + ' — ' + escHtml(c.name) + '</option>';
             });
             sel.value = p.client || '';
+            // Populate quotation dropdown
+            var qtSel = document.getElementById('cpoQuotation');
+            if (qtSel) {
+                qtSel.innerHTML = '<option value="">-- Select Quotation --</option>';
+                if (p.client) {
+                    var qts = DB.get('quotations').filter(function(q) {
+                        return q.customer === p.client;
+                    });
+                    qts.forEach(function(q) {
+                        var label = (q.id || '') + ' - ' + (q.subject || q.description || 'No subject');
+                        if (q.total) label += ' (RM ' + parseFloat(q.total).toLocaleString() + ')';
+                        if (q.status) label += ' [' + q.status + ']';
+                        qtSel.innerHTML += '<option value="' + q.id + '">' + escHtml(label) + '</option>';
+                    });
+                }
+                qtSel.value = p.quotationId || '';
+            }
             document.getElementById('clientPOModal').style.display = 'flex';
             document.getElementById('clientPOModal').classList.add('active');
         }
@@ -6729,6 +6777,7 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
             var amount = document.getElementById('cpoAmount').value;
             var description = document.getElementById('cpoDescription').value.trim();
             var status = document.getElementById('cpoStatus').value;
+            var quotationId = document.getElementById('cpoQuotation').value || '';
 
             if (!poNumber || !client) {
                 showToast('PO number and client are required', 'error');
@@ -6741,7 +6790,8 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
                 date: date,
                 amount: amount ? parseFloat(amount) : 0,
                 description: description,
-                status: status
+                status: status,
+                quotationId: quotationId
             };
 
             if (editId) {
@@ -11174,7 +11224,7 @@ function displayPVCResults(result) {
     showToast('✅ Complete calculation finished!');
 }
 
-function addPVCToSalesOrder() {
+function addPVCToQuotation() {
     if (!lastPVCResult) {
         showToast('⚠️ Run calculation first');
         return;
@@ -11184,41 +11234,68 @@ function addPVCToSalesOrder() {
     const calc = r.calculations;
     const inp = r.inputs;
     
-    // Open sales order modal in Fabrication > PE mode
-    openSalesNewOrderModal();
-    setSalesOrderType('fab');
-    setSalesEquipType('pe-fab');
+    // Open quotation modal fresh
+    openQuotationModal();
     
     setTimeout(function() {
-        // Material name map: PV calc format -> SO dropdown format
-        var matMap = {
-            'SA-516 Gr.70': 'SA516 GR.70',
-            'SA-240 Gr.304': 'SA240 GR.304',
-            'SA-240 Gr.316': 'SA240 GR.316',
-            'SA-387 Gr.11': 'SA387 GR.11',
-            'SA-106 Gr.B': 'SA106 GR.B'
-        };
-        var headTypeMap = {
-            '2:1 Ellipsoidal': 'Ellipsoidal Head',
-            'Ellipsoidal': 'Ellipsoidal Head',
-            'Hemispherical': 'Hemispherical Head',
-            'Torispherical': 'Torispherical Head'
-        };
+        // Calculate total cost
+        var fabricCost = calc.cost_estimate.grand_total_rm || 0;
+        var addConsumable = parseFloat(document.getElementById('pvcConsumableCost')?.value) || 0;
+        var addManpower = parseFloat(document.getElementById('pvcManpowerCost')?.value) || 0;
+        var addDrawing = parseFloat(document.getElementById('pvcDrawingCost')?.value) || 0;
+        var addInspection = parseFloat(document.getElementById('pvcInspectionCost')?.value) || 0;
+        var addTesting = parseFloat(document.getElementById('pvcTestingCost')?.value) || 0;
+        var addOthers = parseFloat(document.getElementById('pvcOthersCost')?.value) || 0;
+        var totalCost = fabricCost + addConsumable + addManpower + addDrawing + addInspection + addTesting + addOthers;
         
-        // --- Header fields ---
-        var soProductName = document.getElementById('soProductName');
-        if (soProductName) soProductName.value = (inp.design_code || 'ASME VIII Div 1') + ' | ' + inp.inner_diameter_mm + 'mm ID x ' + inp.shell_length_mm + 'mm ' + inp.shell_material + ' Pressure Vessel';
+        // --- Subject ---
+        var qtSubject = document.getElementById('qtSubject');
+        if (qtSubject) qtSubject.value = (inp.design_code || 'ASME VIII Div 1') + ' | ' + inp.inner_diameter_mm + 'mm ID x ' + inp.shell_length_mm + 'mm ' + inp.shell_material + ' Pressure Vessel';
         
-        var soBudget = document.getElementById('soBudget');
-        if (soBudget) {
-            var fabricCost = calc.cost_estimate.grand_total_rm || 0;
-            var addConsumable = parseFloat(document.getElementById('pvcConsumableCost')?.value) || 0;
-            var addManpower = parseFloat(document.getElementById('pvcManpowerCost')?.value) || 0;
-            var addDrawing = parseFloat(document.getElementById('pvcDrawingCost')?.value) || 0;
-            var addInspection = parseFloat(document.getElementById('pvcInspectionCost')?.value) || 0;
-            var addTesting = parseFloat(document.getElementById('pvcTestingCost')?.value) || 0;
-            var addOthers = parseFloat(document.getElementById('pvcOthersCost')?.value) || 0;
-            soBudget.value = (fabricCost + addConsumable + addManpower + addDrawing + addInspection + addTesting + addOthers).toFixed(2);
+        // --- Description ---
+        var qtDesc = document.getElementById('qtDescription');
+        if (qtDesc) {
+            var descLines = [];
+            descLines.push('Design Code: ' + (inp.design_code || 'ASME VIII Div 1'));
+            descLines.push('Vessel: ' + inp.inner_diameter_mm + 'mm ID x ' + inp.shell_length_mm + 'mm TL, ' + inp.head_type);
+            descLines.push('Design: ' + inp.design_pressure_bar + ' Bar @ ' + inp.temperature_c + '°C, Joint Eff: ' + inp.joint_efficiency + ', CA: ' + inp.corrosion_allowance_mm + 'mm');
+            descLines.push('Shell: ' + calc.shell.standard_thickness_mm + 'mm ' + inp.shell_material);
+            descLines.push('Heads (' + (calc.head.head_type || inp.head_type) + '): ' + calc.head.standard_thickness_mm + 'mm ' + inp.head_material);
+            if (calc.nozzles && calc.nozzles.length) {
+                calc.nozzles.forEach(function(n) { descLines.push('Nozzle: ' + n.purpose + ' ' + n.size); });
+            }
+            descLines.push('Total Weight: ' + calc.weight_summary.total_weight_tonnes + ' tonnes');
+            descLines.push('Fabrication Cost: RM ' + fabricCost.toLocaleString());
+            descLines.push('Estimated Hours: ' + calc.cost_estimate.estimated_hours + ' hrs');
+            qtDesc.value = descLines.join('\n');
+        }
+        
+        // --- Clear existing items and add line items ---
+        var qtItemsBody = document.getElementById('qtItemsBody');
+        if (qtItemsBody) {
+            // Build items from PV calculation
+            var items = [];
+            items.push({ desc: 'Fabrication - ' + inp.shell_material + ' Pressure Vessel (' + inp.inner_diameter_mm + 'mm ID x ' + inp.shell_length_mm + 'mm)', qty: 1, price: fabricCost });
+            if (addConsumable > 0) items.push({ desc: 'Consumables', qty: 1, price: addConsumable });
+            if (addManpower > 0) items.push({ desc: 'Manpower', qty: 1, price: addManpower });
+            if (addDrawing > 0) items.push({ desc: 'Drawing & Approval', qty: 1, price: addDrawing });
+            if (addInspection > 0) items.push({ desc: 'Inspection', qty: 1, price: addInspection });
+            if (addTesting > 0) items.push({ desc: 'Testing (' + (document.getElementById('pvcTestingType')?.value || '') + ')', qty: 1, price: addTesting });
+            if (addOthers > 0) items.push({ desc: 'Others', qty: 1, price: addOthers });
+            
+            // Clear and rebuild
+            qtItemsBody.innerHTML = '';
+            items.forEach(function(item, idx) {
+                var tr = document.createElement('tr');
+                tr.innerHTML = '<td>' + (idx + 1) + '</td>' +
+                    '<td><input type="text" class="form-control" style="font-size:11px;" id="qtItemDesc_' + idx + '" value="' + escHtml(item.desc) + '"></td>' +
+                    '<td><input type="number" class="form-control" style="font-size:11px;width:60px;" value="' + item.qty + '" min="1" id="qtItemQty_' + idx + '"></td>' +
+                    '<td><input type="number" class="form-control" style="font-size:11px;width:100px;" value="' + item.price.toFixed(2) + '" min="0" step="0.01" id="qtItemPrice_' + idx + '" oninput="updateQtTotal()"></td>' +
+                    '<td style="font-size:12px;font-weight:600;" id="qtItemTotal_' + idx + '">RM ' + item.price.toLocaleString(undefined, {minimumFractionDigits:2}) + '</td>' +
+                    '<td><button class="btn btn-xs btn-ghost" style="color:#dc2626;" onclick="this.closest(\'tr\').remove();updateQtTotal();">✕</button></td>';
+                qtItemsBody.appendChild(tr);
+            });
+            updateQtTotal();
         }
         
         // --- Design Parameters ---
@@ -11231,198 +11308,9 @@ function addPVCToSalesOrder() {
         var dc = document.getElementById('soPEDesignCode');
         if (dc) dc.value = inp.design_code || 'ASME VIII Div 1';
         
-        // --- Shell ---
-        var shellSize = document.getElementById('soPEShellSize');
-        if (shellSize) shellSize.value = inp.inner_diameter_mm + ' x ' + inp.shell_length_mm;
-        var shellSpec = document.getElementById('soPEShellSpec');
-        if (shellSpec) shellSpec.value = matMap[inp.shell_material] || inp.shell_material;
-        var shellQty = document.getElementById('soPEShellQty');
-        if (shellQty) shellQty.value = 1;
-        
-        // --- Heads ---
-        var headSize = document.getElementById('soPEHeadSize');
-        if (headSize) headSize.value = inp.inner_diameter_mm;
-        var headSpec = document.getElementById('soPEHeadSpec');
-        if (headSpec) headSpec.value = matMap[inp.head_material] || inp.head_material;
-        var headType = document.getElementById('soPEHeadType');
-        if (headType) headType.value = headTypeMap[inp.head_type] || inp.head_type;
-        var headQty = document.getElementById('soPEHeadQty');
-        if (headQty) headQty.value = 2;
-        
-        // --- Nozzles: fill first row + add extra rows ---
-        var nozzles = calc.nozzles || [];
-        if (nozzles.length > 0) {
-            var n0 = nozzles[0];
-            var nzName = document.getElementById('soPENozzleName');
-            var nzSize = document.getElementById('soPENozzleSize');
-            var nzSpec = document.getElementById('soPENozzleSpec');
-            var nzQty = document.getElementById('soPENozzleQty');
-            if (nzName) nzName.value = n0.purpose;
-            if (nzSize) nzSize.value = n0.size;
-            if (nzSpec) nzSpec.value = 'SA106 GR.B';
-            if (nzQty) nzQty.value = 1;
-            
-            for (var i = 1; i < nozzles.length; i++) {
-                addSoPENozzleRow();
-                var rows = document.getElementById('soPENozzleList');
-                if (rows) {
-                    var lastRow = rows.lastElementChild;
-                    if (lastRow) {
-                        var inputs = lastRow.querySelectorAll('input,select');
-                        if (inputs[0]) inputs[0].value = nozzles[i].purpose;
-                        if (inputs[1]) inputs[1].value = nozzles[i].size;
-                        if (inputs[2]) inputs[2].value = 'SA106 GR.B';
-                        if (inputs[3]) inputs[3].value = 1;
-                    }
-                }
-            }
-        }
-        
-        // --- Flanges: one row per nozzle ---
-        if (nozzles.length > 0) {
-            var fl0 = nozzles[0];
-            var flName = document.getElementById('soPEFlangeName');
-            var flSize = document.getElementById('soPEFlangeSize');
-            var flSpec = document.getElementById('soPEFlangeSpec');
-            var flQty = document.getElementById('soPEFlangeQty');
-            if (flName) flName.value = fl0.purpose + ' Flange';
-            if (flSize) flSize.value = fl0.size;
-            if (flSpec) flSpec.value = 'A105';
-            if (flQty) flQty.value = 1;
-            
-            for (var j = 1; j < nozzles.length; j++) {
-                addSoPEFlangeRow();
-                var flRows = document.getElementById('soPEFlangeList');
-                if (flRows) {
-                    var flLast = flRows.lastElementChild;
-                    if (flLast) {
-                        var flInputs = flLast.querySelectorAll('input,select');
-                        if (flInputs[0]) flInputs[0].value = nozzles[j].purpose + ' Flange';
-                        if (flInputs[1]) flInputs[1].value = nozzles[j].size;
-                        if (flInputs[2]) flInputs[2].value = 'A105';
-                        if (flInputs[3]) flInputs[3].value = 1;
-                    }
-                }
-            }
-        }
-        
-        // --- Saddle/Leg ---
-        var saddleName = document.getElementById('soPESaddleName');
-        var saddleSpec = document.getElementById('soPESaddleSpec');
-        var saddleQty = document.getElementById('soPESaddleQty');
-        if (saddleName) saddleName.value = calc.support ? calc.support.type : '';
-        if (saddleSpec) saddleSpec.value = 'SA516 GR.70';
-        if (saddleQty) saddleQty.value = 1;
-        
-        // --- Other: Manhole + Lifting Lugs ---
-        var otherAdded = false;
-        if (calc.manhole) {
-            addSoPEOtherRow();
-            var oList = document.getElementById('soPEOtherList');
-            if (oList && oList.lastElementChild) {
-                var oInputs = oList.lastElementChild.querySelectorAll('input,select');
-                if (oInputs[0]) oInputs[0].value = 'Manhole ' + calc.manhole.size;
-                if (oInputs[1]) oInputs[1].value = 'SA516 GR.70';
-                if (oInputs[2]) oInputs[2].value = 1;
-                otherAdded = true;
-            }
-        }
-        if (calc.lifting_lugs) {
-            addSoPEOtherRow();
-            var oList2 = document.getElementById('soPEOtherList');
-            if (oList2 && oList2.lastElementChild) {
-                var oInputs2 = oList2.lastElementChild.querySelectorAll('input,select');
-                if (oInputs2[0]) oInputs2[0].value = 'Lifting Lugs (' + calc.lifting_lugs.num_lugs + ' nos)';
-                if (oInputs2[1]) oInputs2[1].value = 'SA516 GR.70';
-                if (oInputs2[2]) oInputs2[2].value = calc.lifting_lugs.num_lugs;
-                otherAdded = true;
-            }
-        }
-        if (!otherAdded) {
-            var on = document.getElementById('soPEOtherName');
-            var os2 = document.getElementById('soPEOtherSpec');
-            var oq = document.getElementById('soPEOtherQty');
-            if (calc.manhole) {
-                if (on) on.value = 'Manhole ' + calc.manhole.size;
-                if (os2) os2.value = 'SA516 GR.70';
-                if (oq) oq.value = 1;
-            } else if (calc.lifting_lugs) {
-                if (on) on.value = 'Lifting Lugs (' + calc.lifting_lugs.num_lugs + ' nos)';
-                if (os2) os2.value = 'SA516 GR.70';
-                if (oq) oq.value = calc.lifting_lugs.num_lugs;
-            }
-        }
-        
-        // --- Misc: full calculation summary ---
-        var misc = document.getElementById('soPEMisc');
-        if (misc) {
-            var lines = [];
-            lines.push('PV CALCULATION REPORT: ' + r.report_number);
-            lines.push('Design Code: ' + (inp.design_code || 'ASME VIII Div 1'));
-            lines.push(inp.inner_diameter_mm + 'mm ID x ' + inp.shell_length_mm + 'mm TL, ' + inp.head_type);
-            lines.push(inp.design_pressure_bar + ' Bar @ ' + inp.temperature_c + '°C, Joint Eff: ' + inp.joint_efficiency + ', CA: ' + inp.corrosion_allowance_mm + 'mm');
-            lines.push('Shell: ' + calc.shell.standard_thickness_mm + 'mm ' + inp.shell_material);
-            lines.push('Heads (' + (calc.head.head_type || inp.head_type) + '): ' + calc.head.standard_thickness_mm + 'mm ' + inp.head_material);
-            if (calc.nozzles && calc.nozzles.length) {
-                calc.nozzles.forEach(function(n) { lines.push('Nozzle: ' + n.purpose + ' ' + n.size + ' (' + n.pipe_od_mm + 'mm OD, ' + n.flange_type + ' Flange)'); });
-            }
-            if (calc.manhole) {
-                var mhPosLabel = calc.manhole.position === 'left-dish-center' ? 'Left Dish End Center' :
-                    calc.manhole.position === 'right-dish-center' ? 'Right Dish End Center' :
-                    calc.manhole.position === 'shell-center' ? 'Shell Body Center' :
-                    calc.manhole.position === 'bottom-dish-center' ? 'Bottom Dish End Center' :
-                    calc.manhole.position === 'top-dish-center' ? 'Top Dish End Center' :
-                    'Custom Level ' + calc.manhole.level_mm + 'mm';
-                lines.push('Manhole: ' + calc.manhole.size + ', Bolts: ' + calc.manhole.bolts + ', Position: ' + mhPosLabel);
-            }
-            if (calc.handhole) {
-                var hhPosLabel = calc.handhole.position === 'left-dish-center' ? 'Left Dish End Center' :
-                    calc.handhole.position === 'right-dish-center' ? 'Right Dish End Center' :
-                    calc.handhole.position === 'shell-center' ? 'Shell Body Center' :
-                    calc.handhole.position === 'bottom-dish-center' ? 'Bottom Dish End Center' :
-                    calc.handhole.position === 'top-dish-center' ? 'Top Dish End Center' :
-                    'Custom Level ' + calc.handhole.level_mm + 'mm';
-                lines.push('Handhole: ' + calc.handhole.size + ' ' + calc.handhole.type + ' (' + calc.handhole.qty + ' nos), Position: ' + hhPosLabel);
-            }
-            lines.push('Support: ' + (calc.support ? calc.support.type : '-'));
-            if (calc.lifting_lugs) lines.push('Lifting Lugs: ' + calc.lifting_lugs.num_lugs + ' nos');
-            if (inp.misc_material) lines.push('Misc Material: ' + inp.misc_material);
-            lines.push('---');
-            lines.push('WEIGHT: Shell ' + calc.weight_summary.shell_weight_kg + 'kg, Heads ' + calc.weight_summary.head_weight_kg + 'kg, Nozzles ' + calc.weight_summary.nozzles_weight_kg + 'kg, Manhole ' + calc.weight_summary.manhole_weight_kg + 'kg');
-            if (calc.weight_summary.handhole_weight_kg) lines.push('Handhole Weight: ' + calc.weight_summary.handhole_weight_kg + 'kg');
-            lines.push('Support: ' + calc.weight_summary.support_weight_kg + 'kg, Lugs: ' + calc.weight_summary.lifting_lugs_kg + 'kg');
-            lines.push('TOTAL: ' + calc.weight_summary.total_weight_kg + ' kg (' + calc.weight_summary.total_weight_tonnes + ' tonnes)');
-            lines.push('Hydrotest: ' + calc.hydrotest.test_pressure_bar + ' Bar');
-            lines.push('FABRICATION COST: RM ' + calc.cost_estimate.grand_total_rm.toLocaleString() + ' (' + calc.cost_estimate.estimated_hours + ' hrs)');
-            var consumable = parseFloat(document.getElementById('pvcConsumableCost')?.value) || 0;
-            var manpower = parseFloat(document.getElementById('pvcManpowerCost')?.value) || 0;
-            var drawing = parseFloat(document.getElementById('pvcDrawingCost')?.value) || 0;
-            var inspection = parseFloat(document.getElementById('pvcInspectionCost')?.value) || 0;
-            var testingType = document.getElementById('pvcTestingType')?.value || '';
-            var testing = parseFloat(document.getElementById('pvcTestingCost')?.value) || 0;
-            var others = parseFloat(document.getElementById('pvcOthersCost')?.value) || 0;
-            if (consumable || manpower || drawing || inspection || testing || others || testingType) {
-                lines.push('Consumable: RM ' + consumable.toLocaleString());
-                lines.push('Manpower: RM ' + manpower.toLocaleString());
-                lines.push('Drawing & Approval: RM ' + drawing.toLocaleString());
-                lines.push('Inspection: RM ' + inspection.toLocaleString());
-                if (testingType) lines.push('Testing Type: ' + testingType);
-                lines.push('Testing: RM ' + testing.toLocaleString());
-                lines.push('Others: RM ' + others.toLocaleString());
-                lines.push('TOTAL ESTIMATED: RM ' + (calc.cost_estimate.grand_total_rm + consumable + manpower + drawing + inspection + testing + others).toLocaleString());
-            }
-            misc.value = lines.join('\n');
-        }
-        
-        // --- Checkboxes ---
-        var cd = document.getElementById('soPECheckDesign');
-        var cf = document.getElementById('soPECheckFab');
-        if (cd) cd.checked = true;
-        if (cf) cf.checked = true;
-        
         // Close PV calculator modal
         closeModal('pvCompleteModal');
-        showToast('✅ All PV data transferred to Sales Order');
+        showToast('✅ All PV data transferred to Quotation');
     }, 300);
 }
 

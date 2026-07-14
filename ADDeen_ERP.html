@@ -2390,6 +2390,12 @@ document.addEventListener('click', function(event) {
                     </div>
                 </div>
                 <div class="form-group">
+                    <label class="form-label">Link to Quotation (optional)</label>
+                    <select class="form-control" id="cpoQuotation" onchange="onCpoQuotationChange()">
+                        <option value="">-- Select Quotation --</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label class="form-label">Description</label>
                     <textarea class="form-control" id="cpoDescription" rows="3" placeholder="Scope of work / items"></textarea>
                 </div>
@@ -6017,9 +6023,9 @@ document.addEventListener('click', function(event) {
                                 <div id="pvcComponents" style="font-size:11px;line-height:1.6;"></div>
                             </div>
                             
-                            <!-- Add to Sales Order -->
-                            <button class="btn btn-success" onclick="addPVCToSalesOrder()" style="width:100%;margin-top:10px;">
-                                📋 Add to Sales Order
+                            <!-- Add to Quotation -->
+                            <button class="btn btn-success" onclick="addPVCToQuotation()" style="width:100%;margin-top:10px;">
+                                📋 Add to Quotation
                             </button>
                         </div>
                         
