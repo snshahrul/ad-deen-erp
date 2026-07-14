@@ -1187,6 +1187,8 @@ document.addEventListener('click', function(event) {
                     <button class="btn btn-info" onclick="openTonnesCalc()">⚖️ Tonnes Calculator</button>
                     <button class="btn btn-primary" onclick="openPVCalculator()">🔧 PV Calculator</button>
                     <button class="btn btn-warning" onclick="openWeldCostCalculator()">💰 Welding Cost Calculator</button>
+                    <button class="btn btn-secondary" onclick="openPressureConverter()">🔄 Pressure Converter</button>
+                    <button class="btn btn-secondary" onclick="openUnitConverter()">📐 Unit Converter</button>
                 </div>
                 <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
                     <div class="search-box" style="flex:1;min-width:220px;">
@@ -7593,7 +7595,284 @@ document.addEventListener('click', function(event) {
             <button class="btn btn-primary" onclick="saveWOProgressEntry()">📈 Save Progress</button>
         </div>
     </div>
-</div>
+    </div>
+
+    <!-- ==================== PRESSURE CONVERTER MODAL ==================== -->
+    <div class="modal-overlay" id="pressureConverterModal" onclick="if(event.target===this)closeModal('pressureConverterModal')">
+        <div class="modal" style="max-width:520px;">
+            <div class="modal-header">
+                <h3>🔄 Pressure Converter</h3>
+                <button class="modal-close" onclick="closeModal('pressureConverterModal')">×</button>
+            </div>
+            <div class="modal-body" style="padding:20px;">
+                <div class="form-group">
+                    <label class="form-label">Value</label>
+                    <input type="number" class="form-control" id="pressConvValue" value="1" step="any" oninput="convertPressure()">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">From</label>
+                        <select class="form-control" id="pressConvFrom" onchange="convertPressure()">
+                            <option value="bar" selected>bar</option>
+                            <option value="psi">psi</option>
+                            <option value="kPa">kPa</option>
+                            <option value="MPa">MPa</option>
+                            <option value="kgcm2">kg/cm²</option>
+                            <option value="mmHg">mmHg</option>
+                            <option value="atm">atm</option>
+                            <option value="inHg">inHg</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px;">
+                        <span style="font-size:20px;font-weight:700;color:var(--primary);">→</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">To</label>
+                        <select class="form-control" id="pressConvTo" onchange="convertPressure()">
+                            <option value="bar">bar</option>
+                            <option value="psi" selected>psi</option>
+                            <option value="kPa">kPa</option>
+                            <option value="MPa">MPa</option>
+                            <option value="kgcm2">kg/cm²</option>
+                            <option value="mmHg">mmHg</option>
+                            <option value="atm">atm</option>
+                            <option value="inHg">inHg</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="pressConvResult" style="margin-top:16px;padding:16px;background:var(--bg-secondary);border-radius:var(--radius-sm);text-align:center;font-size:20px;font-weight:700;color:var(--primary);min-height:56px;display:flex;align-items:center;justify-content:center;">
+                    Enter a value to convert
+                </div>
+                <div style="margin-top:16px;">
+                    <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;">Quick Reference (1 bar =)</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px;color:var(--text-secondary);">
+                        <span>14.5038 psi</span>
+                        <span>100 kPa</span>
+                        <span>0.1 MPa</span>
+                        <span>1.0197 kg/cm²</span>
+                        <span>750.062 mmHg</span>
+                        <span>0.98692 atm</span>
+                        <span>29.53 inHg</span>
+                        <span>100,000 Pa</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeModal('pressureConverterModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== UNIT CONVERTER MODAL ==================== -->
+    <div class="modal-overlay" id="unitConverterModal" onclick="if(event.target===this)closeModal('unitConverterModal')">
+        <div class="modal" style="max-width:560px;">
+            <div class="modal-header">
+                <h3>📐 Unit Converter</h3>
+                <button class="modal-close" onclick="closeModal('unitConverterModal')">×</button>
+            </div>
+            <div class="modal-body" style="padding:20px;">
+                <div class="tcalc-tabs" id="unitConvTabs">
+                    <button class="tcalc-tab active" onclick="switchUnitConvTab('length')">Length</button>
+                    <button class="tcalc-tab" onclick="switchUnitConvTab('weight')">Weight</button>
+                    <button class="tcalc-tab" onclick="switchUnitConvTab('temp')">Temperature</button>
+                    <button class="tcalc-tab" onclick="switchUnitConvTab('volume')">Volume</button>
+                    <button class="tcalc-tab" onclick="switchUnitConvTab('area')">Area</button>
+                </div>
+                <div id="unitConvContent" style="margin-top:16px;">
+                    <!-- Length -->
+                    <div class="tcalc-pane" id="uconv-length">
+                        <div class="form-group">
+                            <label class="form-label">Value</label>
+                            <input type="number" class="form-control" id="uconvLengthVal" value="1" step="any" oninput="convertUnit('length')">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">From</label>
+                                <select class="form-control" id="uconvLengthFrom" onchange="convertUnit('length')">
+                                    <option value="mm" selected>mm</option>
+                                    <option value="cm">cm</option>
+                                    <option value="m">m</option>
+                                    <option value="km">km</option>
+                                    <option value="in">inch</option>
+                                    <option value="ft">foot</option>
+                                    <option value="yd">yard</option>
+                                    <option value="mi">mile</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px;">
+                                <span style="font-size:20px;font-weight:700;color:var(--primary);">→</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">To</label>
+                                <select class="form-control" id="uconvLengthTo" onchange="convertUnit('length')">
+                                    <option value="mm">mm</option>
+                                    <option value="cm">cm</option>
+                                    <option value="m">m</option>
+                                    <option value="km">km</option>
+                                    <option value="in" selected>inch</option>
+                                    <option value="ft">foot</option>
+                                    <option value="yd">yard</option>
+                                    <option value="mi">mile</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="uconvLengthResult" style="margin-top:12px;padding:14px;background:var(--bg-secondary);border-radius:var(--radius-sm);text-align:center;font-size:18px;font-weight:700;color:var(--primary);min-height:48px;display:flex;align-items:center;justify-content:center;">
+                            Enter a value
+                        </div>
+                    </div>
+                    <!-- Weight -->
+                    <div class="tcalc-pane" id="uconv-weight" style="display:none;">
+                        <div class="form-group">
+                            <label class="form-label">Value</label>
+                            <input type="number" class="form-control" id="uconvWeightVal" value="1" step="any" oninput="convertUnit('weight')">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">From</label>
+                                <select class="form-control" id="uconvWeightFrom" onchange="convertUnit('weight')">
+                                    <option value="kg" selected>kg</option>
+                                    <option value="g">g</option>
+                                    <option value="mg">mg</option>
+                                    <option value="lb">lb</option>
+                                    <option value="oz">oz</option>
+                                    <option value="tonne">tonne</option>
+                                    <option value="ton_us">US ton</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px;">
+                                <span style="font-size:20px;font-weight:700;color:var(--primary);">→</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">To</label>
+                                <select class="form-control" id="uconvWeightTo" onchange="convertUnit('weight')">
+                                    <option value="kg">kg</option>
+                                    <option value="g">g</option>
+                                    <option value="mg">mg</option>
+                                    <option value="lb" selected>lb</option>
+                                    <option value="oz">oz</option>
+                                    <option value="tonne">tonne</option>
+                                    <option value="ton_us">US ton</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="uconvWeightResult" style="margin-top:12px;padding:14px;background:var(--bg-secondary);border-radius:var(--radius-sm);text-align:center;font-size:18px;font-weight:700;color:var(--primary);min-height:48px;display:flex;align-items:center;justify-content:center;">
+                            Enter a value
+                        </div>
+                    </div>
+                    <!-- Temperature -->
+                    <div class="tcalc-pane" id="uconv-temp" style="display:none;">
+                        <div class="form-group">
+                            <label class="form-label">Value</label>
+                            <input type="number" class="form-control" id="uconvTempVal" value="100" step="any" oninput="convertUnit('temp')">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">From</label>
+                                <select class="form-control" id="uconvTempFrom" onchange="convertUnit('temp')">
+                                    <option value="C" selected>°C (Celsius)</option>
+                                    <option value="F">°F (Fahrenheit)</option>
+                                    <option value="K">K (Kelvin)</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px;">
+                                <span style="font-size:20px;font-weight:700;color:var(--primary);">→</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">To</label>
+                                <select class="form-control" id="uconvTempTo" onchange="convertUnit('temp')">
+                                    <option value="C">°C (Celsius)</option>
+                                    <option value="F" selected>°F (Fahrenheit)</option>
+                                    <option value="K">K (Kelvin)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="uconvTempResult" style="margin-top:12px;padding:14px;background:var(--bg-secondary);border-radius:var(--radius-sm);text-align:center;font-size:18px;font-weight:700;color:var(--primary);min-height:48px;display:flex;align-items:center;justify-content:center;">
+                            Enter a value
+                        </div>
+                    </div>
+                    <!-- Volume -->
+                    <div class="tcalc-pane" id="uconv-volume" style="display:none;">
+                        <div class="form-group">
+                            <label class="form-label">Value</label>
+                            <input type="number" class="form-control" id="uconvVolumeVal" value="1" step="any" oninput="convertUnit('volume')">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">From</label>
+                                <select class="form-control" id="uconvVolumeFrom" onchange="convertUnit('volume')">
+                                    <option value="L" selected>Litre</option>
+                                    <option value="mL">mL</option>
+                                    <option value="m3">m³</option>
+                                    <option value="ft3">ft³</option>
+                                    <option value="gal_us">US gal</option>
+                                    <option value="gal_uk">UK gal</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px;">
+                                <span style="font-size:20px;font-weight:700;color:var(--primary);">→</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">To</label>
+                                <select class="form-control" id="uconvVolumeTo" onchange="convertUnit('volume')">
+                                    <option value="L">Litre</option>
+                                    <option value="mL">mL</option>
+                                    <option value="m3">m³</option>
+                                    <option value="ft3" selected>ft³</option>
+                                    <option value="gal_us">US gal</option>
+                                    <option value="gal_uk">UK gal</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="uconvVolumeResult" style="margin-top:12px;padding:14px;background:var(--bg-secondary);border-radius:var(--radius-sm);text-align:center;font-size:18px;font-weight:700;color:var(--primary);min-height:48px;display:flex;align-items:center;justify-content:center;">
+                            Enter a value
+                        </div>
+                    </div>
+                    <!-- Area -->
+                    <div class="tcalc-pane" id="uconv-area" style="display:none;">
+                        <div class="form-group">
+                            <label class="form-label">Value</label>
+                            <input type="number" class="form-control" id="uconvAreaVal" value="1" step="any" oninput="convertUnit('area')">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">From</label>
+                                <select class="form-control" id="uconvAreaFrom" onchange="convertUnit('area')">
+                                    <option value="m2" selected>m²</option>
+                                    <option value="cm2">cm²</option>
+                                    <option value="mm2">mm²</option>
+                                    <option value="ft2">ft²</option>
+                                    <option value="in2">in²</option>
+                                    <option value="acre">acre</option>
+                                    <option value="ha">hectare</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px;">
+                                <span style="font-size:20px;font-weight:700;color:var(--primary);">→</span>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">To</label>
+                                <select class="form-control" id="uconvAreaTo" onchange="convertUnit('area')">
+                                    <option value="m2">m²</option>
+                                    <option value="cm2">cm²</option>
+                                    <option value="mm2">mm²</option>
+                                    <option value="ft2" selected>ft²</option>
+                                    <option value="in2">in²</option>
+                                    <option value="acre">acre</option>
+                                    <option value="ha">hectare</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="uconvAreaResult" style="margin-top:12px;padding:14px;background:var(--bg-secondary);border-radius:var(--radius-sm);text-align:center;font-size:18px;font-weight:700;color:var(--primary);min-height:48px;display:flex;align-items:center;justify-content:center;">
+                            Enter a value
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeModal('unitConverterModal')">Close</button>
+            </div>
+        </div>
+    </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="app.v4.js?v=20260619"></script>

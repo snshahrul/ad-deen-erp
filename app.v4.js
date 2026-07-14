@@ -13325,5 +13325,102 @@ function autoFillRepairEquipment(selectEl) {
     if (eq.testDPT) document.getElementById('soRepTestDPT').checked = true;
     if (eq.testUT) document.getElementById('soRepTestUT').checked = true;
     
-    showToast('✅ Equipment details auto-filled!');
+    showToast('Equipment details auto-filled!');
+}
+
+// ==================== PRESSURE CONVERTER ====================
+function openPressureConverter() {
+    document.getElementById('pressureConverterModal').classList.add('active');
+    convertPressure();
+}
+
+function convertPressure() {
+    var val = parseFloat(document.getElementById('pressConvValue').value);
+    var from = document.getElementById('pressConvFrom').value;
+    var to = document.getElementById('pressConvTo').value;
+    var resultEl = document.getElementById('pressConvResult');
+    if (isNaN(val)) { resultEl.textContent = 'Enter a valid number'; return; }
+
+    // Convert to bar first, then to target
+    var toBar = { bar: 1, psi: 0.0689476, kPa: 0.01, MPa: 10, kgcm2: 0.980665, mmHg: 0.00133322, atm: 1.01325, inHg: 0.0338639 };
+    var fromBar = { bar: 1, psi: 14.5038, kPa: 100, MPa: 0.1, kgcm2: 1.01972, mmHg: 750.062, atm: 0.986923, inHg: 29.53 };
+
+    var barVal = val * toBar[from];
+    var result = barVal * fromBar[to];
+
+    var labels = { bar: 'bar', psi: 'psi', kPa: 'kPa', MPa: 'MPa', kgcm2: 'kg/cm²', mmHg: 'mmHg', atm: 'atm', inHg: 'inHg' };
+    resultEl.textContent = val + ' ' + labels[from] + ' = ' + parseFloat(result.toPrecision(10)) + ' ' + labels[to];
+}
+
+// ==================== UNIT CONVERTER ====================
+function openUnitConverter() {
+    document.getElementById('unitConverterModal').classList.add('active');
+    convertUnit('length');
+}
+
+function switchUnitConvTab(tab) {
+    var tabs = document.querySelectorAll('#unitConvTabs .tcalc-tab');
+    tabs.forEach(function(t) { t.classList.remove('active'); });
+    event.target.classList.add('active');
+    ['length','weight','temp','volume','area'].forEach(function(t) {
+        var el = document.getElementById('uconv-' + t);
+        if (el) el.style.display = t === tab ? 'block' : 'none';
+    });
+    convertUnit(tab);
+}
+
+function convertUnit(type) {
+    var factors, val, from, to, resultEl, result;
+    if (type === 'length') {
+        factors = { mm: 0.001, cm: 0.01, m: 1, km: 1000, in: 0.0254, ft: 0.3048, yd: 0.9144, mi: 1609.344 };
+        val = parseFloat(document.getElementById('uconvLengthVal').value);
+        from = document.getElementById('uconvLengthFrom').value;
+        to = document.getElementById('uconvLengthTo').value;
+        resultEl = document.getElementById('uconvLengthResult');
+        var mVal = val * factors[from];
+        result = mVal / factors[to];
+    } else if (type === 'weight') {
+        factors = { kg: 1, g: 0.001, mg: 0.000001, lb: 0.453592, oz: 0.0283495, tonne: 1000, ton_us: 907.185 };
+        val = parseFloat(document.getElementById('uconvWeightVal').value);
+        from = document.getElementById('uconvWeightFrom').value;
+        to = document.getElementById('uconvWeightTo').value;
+        resultEl = document.getElementById('uconvWeightResult');
+        var kgVal = val * factors[from];
+        result = kgVal / factors[to];
+    } else if (type === 'temp') {
+        val = parseFloat(document.getElementById('uconvTempVal').value);
+        from = document.getElementById('uconvTempFrom').value;
+        to = document.getElementById('uconvTempTo').value;
+        resultEl = document.getElementById('uconvTempResult');
+        // Convert to Celsius first
+        var cVal = from === 'C' ? val : from === 'F' ? (val - 32) * 5/9 : val - 273.15;
+        result = to === 'C' ? cVal : to === 'F' ? cVal * 9/5 + 32 : cVal + 273.15;
+    } else if (type === 'volume') {
+        factors = { L: 1, mL: 0.001, m3: 1000, ft3: 28.3168, gal_us: 3.78541, gal_uk: 4.54609 };
+        val = parseFloat(document.getElementById('uconvVolumeVal').value);
+        from = document.getElementById('uconvVolumeFrom').value;
+        to = document.getElementById('uconvVolumeTo').value;
+        resultEl = document.getElementById('uconvVolumeResult');
+        var lVal = val * factors[from];
+        result = lVal / factors[to];
+    } else if (type === 'area') {
+        factors = { m2: 1, cm2: 0.0001, mm2: 0.000001, ft2: 0.092903, in2: 0.00064516, acre: 4046.86, ha: 10000 };
+        val = parseFloat(document.getElementById('uconvAreaVal').value);
+        from = document.getElementById('uconvAreaFrom').value;
+        to = document.getElementById('uconvAreaTo').value;
+        resultEl = document.getElementById('uconvAreaResult');
+        var m2Val = val * factors[from];
+        result = m2Val / factors[to];
+    }
+
+    if (isNaN(val)) { resultEl.textContent = 'Enter a valid number'; return; }
+
+    var unitLabels = {
+        mm:'mm',cm:'cm',m:'m',km:'km',in:'in',ft:'ft',yd:'yd',mi:'mi',
+        kg:'kg',g:'g',mg:'mg',lb:'lb',oz:'oz',tonne:'tonne',ton_us:'US ton',
+        C:'°C',F:'°F',K:'K',
+        L:'L',mL:'mL',m3:'m³',ft3:'ft³',gal_us:'US gal',gal_uk:'UK gal',
+        m2:'m²',cm2:'cm²',mm2:'mm²',ft2:'ft²',in2:'in²',acre:'acre',ha:'hectare'
+    };
+    resultEl.textContent = val + ' ' + unitLabels[from] + ' = ' + parseFloat(result.toPrecision(10)) + ' ' + unitLabels[to];
 }
