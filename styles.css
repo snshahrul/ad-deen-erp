@@ -989,6 +989,26 @@
         .tcalc-result { margin-top:8px; }
         .tcalc-market-section { border:1px solid var(--border); border-radius:8px; padding:16px; margin-top:16px; }
 
+        /* ===================== REPORT SECTIONS (PV CALC etc) ===================== */
+        .report-section {
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 16px;
+            background: var(--bg);
+        }
+        .report-section-title {
+            font-size: 13px;
+            font-weight: 700;
+            margin: 0 0 12px 0;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text);
+        }
+
         /* ===================== PERMISSION GATES ===================== */
         .role-Staff .btn-danger,
         .role-Engineer .btn-danger,
