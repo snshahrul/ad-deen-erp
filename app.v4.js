@@ -441,7 +441,7 @@ console.log('🤖 AI Assistant Ready — Click robot to open');
                     var res = await fetch(url, opts);
                     if (!res.ok) {
                         var errBody = await res.json().catch(function() { return {}; });
-                        if (res.status === 401) { this._token = null; localStorage.removeItem('ad_deen_erp_token'); localStorage.removeItem('ad_deen_erp_session'); } else { console.warn('[DB] API error ' + res.status + ' for ' + path + ': ' + (errBody.error || res.statusText)); }
+                        if (res.status === 401) { this._token = null; localStorage.removeItem('ad_deen_erp_token'); localStorage.removeItem('ad_deen_erp_session'); }
                         return null;
                     }
                     return await res.json();
