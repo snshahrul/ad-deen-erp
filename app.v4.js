@@ -1511,10 +1511,7 @@ function closeModal(modalId) {
         el.classList.remove('active');
         el.style.display = 'none';
     }
-    if (modalId === 'jobModal' && _salesMode) {
-        _salesMode = false;
-        var sf = document.getElementById('soSalesFields');
-        if (sf) sf.style.display = 'none';
+    if (modalId === 'jobModal') {
         var title = document.getElementById('jobModalTitle');
         if (title) title.textContent = 'New Work Order';
         var btn = document.getElementById('jobModalSubmitBtn');
@@ -3156,7 +3153,6 @@ window.addEventListener('DOMContentLoaded', function() {
                 renderFabOrders();
             }
             if (section === 'design') {
-                renderDesignReviews();
             }
             if (section === 'quality') {
                 renderMethodStatements();
@@ -3388,23 +3384,7 @@ window.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        let _salesMode = false;
-
         function openJobModal() {
-            // If sales mode, skip work-order-specific reset and show sales fields
-            if (_salesMode) {
-                document.getElementById('soSalesFields').style.display = 'block';
-                // Set default dates
-                const due = document.getElementById('woDueDate');
-                if (due) { const d = new Date(); d.setDate(d.getDate() + 21); due.value = d.toISOString().split('T')[0]; }
-                const raised = document.getElementById('woRaisedBy');
-                if (raised && Auth.getUser()) raised.value = Auth.getUser().name + ', ' + Auth.getUser().role;
-                // Reset to Fab
-                document.querySelector('input[name="woWorkCategory"][value="fab"]').checked = true;
-                setWoCategory('fab');
-                document.getElementById('jobModal').classList.add('active');
-                return;
-            }
             // Reset uploaded files
             window._woUploadedDocs = [];
             document.getElementById('woFileList').innerHTML = '';
@@ -5322,7 +5302,6 @@ window.addEventListener('DOMContentLoaded', function() {
             closeModal('woMarDetailModal');
             renderJobsTable();
             renderKanbanBoard();
-            renderDesignReviews();
             showToast('📐 ' + _currentMarWoId + ' sent to Design Department');
         }
 
@@ -5338,7 +5317,6 @@ window.addEventListener('DOMContentLoaded', function() {
             closeModal('woMarDetailModal');
             renderJobsTable();
             renderKanbanBoard();
-            renderDesignReviews();
             showToast('🔍 '+_currentMarWoId+' sent to Quality Management');
         }
 
@@ -6648,10 +6626,10 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
             }
             tbody.innerHTML = pos.sort(function(a, b) { return (b.createdAt || '').localeCompare(a.createdAt || ''); }).map(function(p) {
                 var statusClass = (p.status || 'Pending').toLowerCase().replace(/\s+/g, '-');
-                var soLink = p.salesOrderId ? '<a href="#" onclick="navigateTo(\'sales\');return false;" style="color:var(--secondary);">' + p.salesOrderId + '</a>' : '<span style="color:var(--text-muted);font-size:11px;">—</span>';
+                var soLink = p.salesOrderId ? '<a href="#" onclick="navigateTo(\'job-management\');return false;" style="color:var(--secondary);">' + p.salesOrderId + '</a>' : '<span style="color:var(--text-muted);font-size:11px;">—</span>';
                 var actions = '<div class="btn-group">';
                 if (p.status !== 'Converted' && p.status !== 'Cancelled') {
-                    actions += '<button class="btn btn-xs btn-info" onclick="convertPOToSalesOrder(\'' + p.id + '\')">→ SO</button>';
+                    actions += '<button class="btn btn-xs btn-info" onclick="openNewWorkOrderFromPO(\'' + p.id + '\')">→ WO</button>';
                     actions += '<button class="btn btn-xs btn-secondary" onclick="editClientPO(\'' + p.id + '\')">Edit</button>';
                 }
                 actions += '<button class="btn btn-xs btn-ghost" onclick="deleteClientPO(\'' + p.id + '\')">×</button></div>';
@@ -6731,6 +6709,153 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
             if (amountEl && qt.total) amountEl.value = qt.total;
             if (dateEl && qt.date) dateEl.value = qt.date;
             showToast('Auto-filled from quotation ' + qt.id, 'info');
+        }
+
+        // ==================== NEW WORK ORDER FROM PO ====================
+
+        function openNewWorkOrderFromPO(poId) {
+            var po = DB.getById('clientPOs', poId, 'id');
+            if (!po) return;
+            var modal = document.getElementById('newWorkOrderModal');
+            if (!modal) return;
+
+            // Reset form
+            document.getElementById('nwoEditId').value = '';
+            document.getElementById('nwoPoId').value = poId;
+            document.getElementById('nwoQuotationId').value = po.quotationId || '';
+            document.getElementById('nwoProductName').value = '';
+            document.getElementById('nwoDescription').value = po.description || '';
+            document.getElementById('nwoAmount').value = po.amount || '';
+            document.getElementById('nwoType').value = 'fabrication';
+            document.getElementById('nwoPriority').value = 'Normal';
+            document.getElementById('nwoDueDate').value = '';
+
+            // Populate client dropdown
+            var sel = document.getElementById('nwoClient');
+            sel.innerHTML = '<option value="">-- Select Client --</option>';
+            DB.get('customers').forEach(function(c) {
+                sel.innerHTML += '<option value="' + escHtml(c.company || c.name) + '">' + escHtml(c.company || c.name) + ' — ' + escHtml(c.name) + '</option>';
+            });
+            sel.value = po.client || '';
+
+            // Populate assigned-to dropdown
+            var assignSel = document.getElementById('nwoAssignedTo');
+            assignSel.innerHTML = '<option value="">-- Select --</option>';
+            (DB.get('users') || []).forEach(function(u) {
+                assignSel.innerHTML += '<option value="' + escHtml(u.username) + '">' + escHtml(u.name || u.username) + '</option>';
+            });
+
+            // Populate PO reference and quotation reference
+            document.getElementById('nwoPONumber').value = po.poNumber || '';
+
+            // Look up linked quotation for product name and description
+            if (po.quotationId) {
+                var qt = DB.getById('quotations', po.quotationId, 'id');
+                if (qt) {
+                    document.getElementById('nwoQuotationRef').value = qt.id + ' - ' + (qt.subject || '');
+                    if (!document.getElementById('nwoProductName').value) {
+                        document.getElementById('nwoProductName').value = qt.subject || '';
+                    }
+                    if (!document.getElementById('nwoDescription').value && qt.description) {
+                        document.getElementById('nwoDescription').value = qt.description;
+                    }
+                } else {
+                    document.getElementById('nwoQuotationRef').value = po.quotationId;
+                }
+            } else {
+                document.getElementById('nwoQuotationRef').value = '—';
+            }
+
+            // Auto-fill contact from customer
+            onNwoClientChange();
+
+            modal.style.display = 'flex';
+            modal.classList.add('active');
+        }
+
+        function onNwoClientChange() {
+            var sel = document.getElementById('nwoClient');
+            if (!sel || !sel.value) return;
+            var clientName = sel.value;
+            var customers = DB.get('customers');
+            var c = customers.find(function(c) { return (c.company || c.name) === clientName; });
+            var contactEl = document.getElementById('nwoContact');
+            if (c && contactEl) {
+                contactEl.value = c.name || c.contactPerson || '';
+            }
+        }
+
+        function saveNewWorkOrder() {
+            var client = document.getElementById('nwoClient').value;
+            var productName = document.getElementById('nwoProductName').value.trim();
+            var description = document.getElementById('nwoDescription').value.trim();
+            var amount = parseFloat(document.getElementById('nwoAmount').value) || 0;
+            var type = document.getElementById('nwoType').value;
+            var priority = document.getElementById('nwoPriority').value;
+            var assignedTo = document.getElementById('nwoAssignedTo').value;
+            var dueDate = document.getElementById('nwoDueDate').value;
+            var poId = document.getElementById('nwoPoId').value;
+            var quotationId = document.getElementById('nwoQuotationId').value;
+            var contact = document.getElementById('nwoContact').value;
+            var poNumber = document.getElementById('nwoPONumber').value;
+
+            if (!client || !productName) {
+                showToast('Client and Product/Equipment are required', 'error');
+                return;
+            }
+
+            var woId = 'WO-' + new Date().getFullYear() + '-' + String(DB.get('workOrders').length + 1).padStart(6, '0');
+            var wo = {
+                id: woId,
+                title: productName,
+                client: client,
+                contact: contact,
+                description: description,
+                amount: amount,
+                type: type,
+                priority: priority,
+                assignedTo: assignedTo,
+                dueDate: dueDate,
+                status: 'New',
+                raisedBy: Auth.getUser()?.username || '',
+                raisedDate: new Date().toISOString(),
+                createdAt: new Date().toISOString(),
+                clientPONumber: poNumber,
+                poId: poId,
+                quotationId: quotationId,
+                workCategory: type === 'repair' ? 'repair' : 'new-fab',
+                branch: ''
+            };
+
+            saveWithOwner('workOrders', wo);
+
+            // Create journal entries
+            if (amount > 0) {
+                var year = new Date().getFullYear();
+                var acCount = DB.get('accountingEntries').length + 1;
+                saveWithOwner('accountingEntries', {
+                    id: 'GL-' + year + '-' + String(acCount).padStart(4, '0'),
+                    date: new Date().toISOString().slice(0, 10),
+                    description: 'Work Order ' + woId + ' - ' + productName + ' (' + client + ')',
+                    debit: amount, credit: 0,
+                    account: 'Accounts Receivable'
+                });
+            }
+
+            // Mark PO as converted
+            if (poId) {
+                var po = DB.getById('clientPOs', poId, 'id');
+                if (po) {
+                    po.status = 'Converted';
+                    po.salesOrderId = woId;
+                    saveWithOwner('clientPOs', po);
+                }
+            }
+
+            closeModal('newWorkOrderModal');
+            showToast('✅ Work Order ' + woId + ' created from ' + (poNumber || 'PO'), 'success');
+            renderJobsTable();
+            if (typeof renderClientPOs === 'function') renderClientPOs();
         }
 
         function editClientPO(id) {
@@ -6823,38 +6948,7 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
             showToast('P.O deleted', 'info');
         }
 
-        function convertPOToSalesOrder(poId) {
-            var po = DB.getById('clientPOs', poId, 'id');
-            if (!po) return;
-            openSalesNewOrderModal();
-            var sel = document.getElementById('soCustName');
-            if (sel) {
-                for (var i = 0; i < sel.options.length; i++) {
-                    if (sel.options[i].text.indexOf(po.client) !== -1) {
-                        sel.value = sel.options[i].value;
-                        break;
-                    }
-                }
-            }
-            var desc = document.getElementById('soProductName');
-            if (desc) desc.value = po.description || 'PO: ' + po.poNumber;
-            var budget = document.getElementById('soBudget');
-            if (budget && po.amount) budget.value = po.amount;
-            var poRef = document.getElementById('soClientPONumber');
-            if (poRef) poRef.value = po.poNumber || '';
-            // Trigger customer change to populate PO dropdown, then re-select
-            if (sel && sel.value) onSoCustChange();
-            if (poRef && po.poNumber) {
-                for (var j = 0; j < poRef.options.length; j++) {
-                    if (poRef.options[j].value === po.poNumber) { poRef.value = po.poNumber; break; }
-                }
-            }
 
-            po.salesOrderId = '(pending)';
-            po.status = 'Converted';
-            saveWithOwner('clientPOs', po);
-            showToast('Sales order form pre-filled from ' + po.poNumber, 'success');
-        }
 
         // ========================================================================
         //  PROJECT COSTING FUNCTIONS
@@ -7146,46 +7240,36 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
         // ========================================================================
         //  SALES & BILLING FUNCTIONS
         // ========================================================================
+
+        function renderDesignReviews() {
+            // Design reviews now work on work orders directly
+            var tbody = document.getElementById('designReviewsTable');
+            if (tbody) {
+                var wos = DB.get('workOrders').filter(function(wo) { return wo.status === 'New' || wo.designStatus === 'Under Review'; });
+                if (wos.length) {
+                    tbody.innerHTML = wos.map(function(wo) {
+                        return '<tr><td>' + escHtml(wo.id) + '</td><td>' + escHtml(wo.client || '—') + '</td><td>' + escHtml(wo.title || wo.productName || '—') + '</td><td>' + escHtml(wo.status || 'New') + '</td></tr>';
+                    }).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text-muted);">No pending design reviews</td></tr>';
+                }
+            }
+        }
+
         function renderSales() {
-            const filter = document.getElementById('salesStatusFilter')?.value || 'all';
-            const search = document.getElementById('salesSearch');
-            const q = search ? search.value.toLowerCase() : '';
-            let orders = DB.get('salesOrders');
-            if (filter !== 'all') orders = orders.filter(o => (o.status || '') === filter);
-            if (q) orders = orders.filter(o =>
-                (o.id || '').toLowerCase().includes(q) ||
-                (o.customer || o.custName || '').toLowerCase().includes(q) ||
-                (o.equipment || o.productName || '').toLowerCase().includes(q) ||
-                (o.contact || '').toLowerCase().includes(q) ||
-                (o.description || '').toLowerCase().includes(q)
-            );
-            const total = DB.get('salesOrders').length;
-            const pending = DB.get('salesOrders').filter(o => o.status === 'Pending').length;
-            const completed = DB.get('salesOrders').filter(o => o.status === 'Completed').length;
-            const revenue = DB.get('salesOrders').filter(o => o.status === 'Completed').reduce((s, o) => s + (o.amount || 0), 0);
-            const qts = DB.get('quotations');
-            const qtDraft = qts.filter(q => q.status === 'Draft').length;
-            const qtAccepted = qts.filter(q => q.status === 'Accepted').length;
-            const qtConverted = qts.filter(q => q.status === 'Converted').length;
-            const qtTotal = qts.reduce((s, q) => s + (q.total || 0), 0);
-            const invs = DB.get('invoices');
-            const invUnpaid = invs.filter(i => i.status === 'Unpaid' || i.status === 'Overdue').reduce((s, i) => s + (i.total || i.amount || 0), 0);
+            // Render work orders created from POs
+            var woFromPO = DB.get('workOrders').filter(function(wo) { return wo.poId; });
+            var qts = DB.get('quotations');
+            var invs = DB.get('invoices');
+
+            var qtDraft = qts.filter(function(q) { return q.status === 'Draft'; }).length;
+            var qtAccepted = qts.filter(function(q) { return q.status === 'Accepted'; }).length;
+            var invUnpaid = invs.filter(function(i) { return i.status === 'Unpaid' || i.status === 'Overdue'; }).reduce(function(s, i) { return s + (i.total || i.amount || 0); }, 0);
+
             document.getElementById('salesStats').innerHTML = `
                 <div class="stat-card">
-                    <div class="stat-icon" style="background:linear-gradient(135deg,#dbeafe,#bfdbfe);">💳</div>
-                    <div class="stat-content"><h3>${total}</h3><p>Total Orders</p><div class="stat-trend trend-up">${pending} pending</div></div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon" style="background:linear-gradient(135deg,#fef3c7,#fde68a);">⏳</div>
-                    <div class="stat-content"><h3>${pending}</h3><p>Pending / In Progress</p><div class="stat-trend trend-up">Awaiting fulfillment</div></div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon" style="background:linear-gradient(135deg,#d1fae5,#a7f3d0);">✅</div>
-                    <div class="stat-content"><h3>${completed}</h3><p>Completed</p><div class="stat-trend trend-up">Delivered</div></div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon" style="background:linear-gradient(135deg,#ede9fe,#ddd6fe);">💰</div>
-                    <div class="stat-content"><h3>RM ${revenue.toLocaleString()}</h3><p>Total Revenue</p><div class="stat-trend trend-up">Completed orders</div></div>
+                    <div class="stat-icon" style="background:linear-gradient(135deg,#dbeafe,#bfdbfe);">📋</div>
+                    <div class="stat-content"><h3>${woFromPO.length}</h3><p>Work Orders from POs</p><div class="stat-trend trend-up">Created from client POs</div></div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon" style="background:linear-gradient(135deg,#fce7f3,#fbcfe8);">📄</div>
@@ -7196,714 +7280,30 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
                     <div class="stat-content"><h3>RM ${invUnpaid.toLocaleString()}</h3><p>Outstanding</p><div class="stat-trend trend-up">${invs.length} invoices</div></div>
                 </div>
             `;
-             document.getElementById('salesOrdersTable').innerHTML = orders.length
-                ? orders.map(o => {
-                    var scopeType = o.type === 'rep' ? 'Repair' : 'Fabrication';
-                    var safeStatus = o.status || 'Pending';
-                    return '<tr>' +
-                        '<td><strong><span class="trace-link">' + o.id + '</span></strong></td>' +
-                        '<td><strong>' + o.customer + '</strong><br><small style="color:var(--text-muted);">' + (o.contact || '') + '</small></td>' +
-                        '<td>' + o.equipment + '<br><small style="color:var(--text-muted);">' + (o.description||'').substring(0,40) + ((o.description||'').length>40?'...':'') + '</small></td>' +
-                        '<td>' + scopeType + '</td>' +
-                        '<td><strong>RM ' + (o.amount||0).toLocaleString() + '</strong></td>' +
-                        '<td><span class="badge badge-' + safeStatus.toLowerCase().replace(/\s+/g,'-') + '">' + safeStatus + '</span></td>' +
-                        '<td style="font-size:12px;">' + (o.createdAt || '—') + '</td>' +
-                        '<td>' +
-                            '<div class="btn-group">' +
-                                '<button class="btn btn-xs btn-info" onclick="viewSalesOrder(\'' + o.id + '\')">View</button>' +
-                                '<button class="btn btn-xs btn-secondary" onclick="openSalesEditModal(\'' + o.id + '\')">Edit</button>' +
-                                '<button class="btn btn-xs btn-danger" onclick="deleteRecord(\'salesOrders\',\'' + o.id + '\')">Delete</button>' +
-                            '</div>' +
-                        '</td>' +
-                    '</tr>';
-                }).join('')
-                : '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-muted);">No sales orders found</td></tr>';
+
+            var tbody = document.getElementById('salesWorkOrdersTable');
+            if (tbody) {
+                if (woFromPO.length) {
+                    tbody.innerHTML = woFromPO.sort(function(a, b) { return (b.createdAt || '').localeCompare(a.createdAt || ''); }).map(function(wo) {
+                        var typeLabel = wo.type === 'repair' ? 'Repair' : 'Fabrication';
+                        var statusClass = (wo.status || 'New').toLowerCase().replace(/\s+/g, '-');
+                        return '<tr>' +
+                            '<td><strong>' + escHtml(wo.id) + '</strong></td>' +
+                            '<td>' + escHtml(wo.client || '—') + '</td>' +
+                            '<td>' + escHtml(wo.title || wo.productName || '—') + '<br><small style="color:var(--text-muted);">' + (wo.description || '').substring(0, 40) + ((wo.description || '').length > 40 ? '...' : '') + '</small></td>' +
+                            '<td>' + typeLabel + '</td>' +
+                            '<td><strong>RM ' + (wo.amount || 0).toLocaleString() + '</strong></td>' +
+                            '<td><span class="badge badge-' + statusClass + '">' + escHtml(wo.status || 'New') + '</span></td>' +
+                            '<td style="font-size:12px;">' + (wo.createdAt || '—') + '</td>' +
+                        '</tr>';
+                    }).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted);">No work orders created from client POs yet. Go to CLIENT P.O and click "→ WO" to create one.</td></tr>';
+                }
+            }
+
             try { renderQuotations(); } catch (e) { console.error('renderQuotations error:', e); }
             try { renderInvoices(); } catch (e) { console.error('renderInvoices error:', e); }
-        }
-
-        function openSalesModal() {
-            // Populate customer dropdown in sales section
-            const sel = document.getElementById('soCustomer');
-            sel.innerHTML = '<option>Select Customer...</option>';
-            DB.get('customers').forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c.id;
-                opt.textContent = c.company + ' — ' + c.name;
-                sel.appendChild(opt);
-            });
-            // Clear sales-specific fields
-            document.getElementById('soContact').value = '';
-            document.getElementById('soEmail').value = '';
-            document.getElementById('soPhone').value = '';
-            document.getElementById('soAmount').value = '';
-            document.getElementById('soShellMat').value = '';
-            document.getElementById('soHeadMat').value = '';
-            document.getElementById('soMainholeQty').value = '0';
-            document.getElementById('soMainholeType').value = '';
-            document.getElementById('soNozzleSize').value = '';
-            document.getElementById('soNozzleQty').value = '1';
-            document.getElementById('soNozzleMat').value = '';
-            document.getElementById('soFlangeType').value = '';
-            document.getElementById('soFlangeSize').value = '';
-            document.getElementById('soTotalFlanges').value = '0';
-            document.getElementById('soBlindReq').value = 'No';
-            document.getElementById('soSaddleMat').value = '';
-            document.getElementById('soLiftingLug').value = 'No';
-            document.getElementById('soBoltNut').value = '';
-            document.getElementById('soSvModel').value = '';
-            document.getElementById('soSvSize').value = '';
-            document.getElementById('soPressGauge').value = '';
-            document.getElementById('soBoilerTubeSpec').value = '';
-            document.getElementById('soBoilerTubeSize').value = '';
-            document.getElementById('soBoilerTubeQty').value = '1';
-            document.getElementById('soNpPlateSize').value = '';
-            document.getElementById('soNpPlateSpec').value = '';
-            document.getElementById('soNpPlateQty').value = '1';
-            document.getElementById('soNpAngleSize').value = '';
-            document.getElementById('soNpAngleSpec').value = '';
-            document.getElementById('soNpAngleQty').value = '1';
-            document.getElementById('soNpFlatSize').value = '';
-            document.getElementById('soNpFlatSpec').value = '';
-            document.getElementById('soNpFlatQty').value = '1';
-            document.getElementById('soNpBeamSize').value = '';
-            document.getElementById('soNpBeamSpec').value = '';
-            document.getElementById('soNpBeamQty').value = '1';
-            document.getElementById('soNpOtherMat').value = '';
-            // Reset add-step arrays
-            _soNozzleItems = []; _soFlangeItems = []; _soSvItems = []; _soBoilerTubeItems = [];
-            _soNpPlateItems = []; _soNpAngleItems = []; _soNpFlatItems = []; _soNpBeamItems = [];
-            renderSoNozzleList(); renderSoFlangeList(); renderSoSvList(); renderSoBoilerTubeList();
-            renderSoNpPlateList(); renderSoNpAngleList(); renderSoNpFlatList(); renderSoNpBeamList();
-            // Open the shared job modal in sales mode
-            _salesMode = true;
-            document.getElementById('jobModalTitle').textContent = '💳 Sales New Order';
-            document.getElementById('soSalesFields').style.display = 'block';
-            document.getElementById('jobModalSubmitBtn').textContent = '💳 Create Sales Order';
-            document.getElementById('jobModalSubmitBtn').onclick = createSalesOrder;
-            openJobModal();
-        }
-
-        function updateSalesContact() {
-            const custId = document.getElementById('soCustomer').value;
-            const customer = DB.getById('customers', custId);
-            if (customer) {
-                document.getElementById('soContact').value = customer.name || '';
-                document.getElementById('soEmail').value = customer.email || '';
-                document.getElementById('soPhone').value = customer.phone || '';
-            } else {
-                document.getElementById('soContact').value = '';
-                document.getElementById('soEmail').value = '';
-                document.getElementById('soPhone').value = '';
-            }
-        }
-
-        function createSalesOrder() {
-            const customer = document.getElementById('soCustomer').value;
-            const amount = parseFloat(document.getElementById('soAmount').value) || 0;
-            if (customer === 'Select Customer...') { showToast('Please select a customer', 'error'); return; }
-            if (!document.getElementById('woTitle').value.trim()) { showToast('Equipment / service description is required', 'error'); return; }
-            if (amount <= 0) { showToast('Please enter a valid amount', 'error'); return; }
-
-            const now = new Date();
-            const allOrders = DB.get('salesOrders');
-            const num = allOrders.length + 1;
-            const id = 'SO-' + now.getFullYear() + '-' + String(num).padStart(4, '0');
-            const customerObj = DB.getById('customers', customer);
-
-            // Read from shared jobModal fields (wo* IDs)
-            const designP = document.getElementById('woDesignPressure').value.trim();
-            const designT = document.getElementById('woDesignTemp').value.trim();
-            const material = document.getElementById('woMaterial').value.trim();
-            const headType = document.getElementById('woHeadType').value;
-            const testingReq = document.getElementById('woTestingReq').value.trim();
-            const description = document.getElementById('woDescription').value.trim();
-
-            // Material requirement data (so* IDs in sales section)
-            const shellMat = document.getElementById('soShellMat').value;
-            const headMat = document.getElementById('soHeadMat').value;
-            const mainholeQty = document.getElementById('soMainholeQty').value;
-            const mainholeType = document.getElementById('soMainholeType').value;
-            const blindReq = document.getElementById('soBlindReq').value;
-            const saddleMat = document.getElementById('soSaddleMat').value;
-            const liftingLug = document.getElementById('soLiftingLug').value;
-            const boltNut = document.getElementById('soBoltNut').value;
-            const totalFlanges = document.getElementById('soTotalFlanges').value;
-            const pressGauge = document.getElementById('soPressGauge').value.trim();
-            const boilerTubeSpec = document.getElementById('soBoilerTubeSpec').value;
-
-            const so = {
-                id,
-                customer: customerObj ? customerObj.company : customer,
-                contact: customerObj ? customerObj.name : '',
-                email: customerObj ? customerObj.email : '',
-                phone: customerObj ? customerObj.phone : '',
-                site: document.getElementById('woSite').value.trim() || '',
-                equipment: document.getElementById('woTitle').value.trim(),
-                description: description,
-                amount,
-                status: 'Pending',
-                woRef: '',
-                createdAt: now.toISOString().split('T')[0],
-                createdBy: Auth.getUser() ? Auth.getUser().name : 'Sales Team',
-                designPressure: designP,
-                designTemperature: designT,
-                shellHeadMaterial: material,
-                headType: headType,
-                testingRequirement: testingReq,
-                // Material & item requirements
-                shellMaterial: shellMat,
-                headMaterial: headMat,
-                mainholeQty: mainholeQty,
-                mainholeType: mainholeType,
-                nozzleItems: _soNozzleItems || [],
-                flangeItems: _soFlangeItems || [],
-                totalFlanges: totalFlanges,
-                blindRequired: blindReq,
-                saddleMaterial: saddleMat,
-                liftingLug: liftingLug,
-                boltNutSpec: boltNut,
-                safetyValves: _soSvItems || [],
-                pressureGauge: pressGauge,
-                boilerTubeSpec: boilerTubeSpec,
-                boilerTubes: _soBoilerTubeItems || [],
-                // Non-pressure equipment materials
-                npPlateItems: _soNpPlateItems || [],
-                npAngleItems: _soNpAngleItems || [],
-                npFlatItems: _soNpFlatItems || [],
-                npBeamItems: _soNpBeamItems || [],
-                npOtherMaterial: document.getElementById('soNpOtherMat').value.trim()
-            };
-
-            saveWithOwner('salesOrders', so);
-            closeModal('jobModal');
-            _salesMode = false;
-            document.getElementById('soSalesFields').style.display = 'none';
-            document.getElementById('jobModalTitle').textContent = '📋 New Work Order';
-            document.getElementById('jobModalSubmitBtn').textContent = '📋 Submit Work Order';
-            document.getElementById('jobModalSubmitBtn').onclick = createWorkOrder;
-            renderSales();
-            showToast('💳 Sales Order ' + id + ' created');
-        }
-
-        function viewSalesOrder(id) {
-            const so = DB.getById('salesOrders', id);
-            if (!so) return showToast('Sales order not found', 'error');
-            showToast('📋 ' + so.id + ' — ' + so.customer + ' | RM ' + (so.amount||0).toLocaleString() + (so.woRef ? ' | Linked WO: ' + so.woRef : ''));
-        }
-
-        function openSalesEditModal(id) {
-            var so = DB.getById('salesOrders', id);
-            if (!so) { showToast('Sales order not found', 'error'); return; }
-            document.getElementById('seModalId').value = id;
-            document.getElementById('seModalTitle').textContent = so.id + ' — ' + so.customer;
-            document.getElementById('seCustName').value = so.customer || '';
-            document.getElementById('seContactPerson').value = so.contact || '';
-            document.getElementById('seEmailAddr').value = so.email || '';
-            document.getElementById('sePhone').value = so.phone || '';
-            document.getElementById('seStatus').value = so.status || 'Pending';
-            document.getElementById('seEquipment').value = so.equipment || '';
-            document.getElementById('seBudget').value = so.amount || 0;
-            document.getElementById('seDescription').value = so.description || '';
-            document.getElementById('seInstDuration').value = so.installationDuration || '';
-            document.getElementById('seInstDueDate').value = so.installationDueDate || '';
-            document.getElementById('seHandoverDuration').value = so.handoverDuration || '';
-            document.getElementById('seHandoverDueDate').value = so.handoverDueDate || '';
-            document.getElementById('seProjectCost').value = so.projectCost || '';
-            var matSummary = document.getElementById('seMaterialSummary');
-            if (matSummary) {
-                var parts = [];
-                if (so.shellMaterial) parts.push('Shell: ' + so.shellMaterial);
-                if (so.headMaterial) parts.push('Head: ' + so.headMaterial);
-                if (so.totalFlanges && so.totalFlanges > 0) parts.push('Flanges: ' + so.totalFlanges + ' pcs');
-                if (so.nozzleItems && so.nozzleItems.length) parts.push('Nozzles: ' + so.nozzleItems.length + ' items');
-                if (so.saddleMaterial) parts.push('Saddle: ' + so.saddleMaterial);
-                matSummary.innerHTML = parts.length ? parts.join('<br>') : '<span style="color:#999;">— No material data —</span>';
-            }
-            var el = document.getElementById('salesEditModal');
-            el.style.display = '';
-            el.classList.add('active');
-        }
-
-        function saveSalesAmendment() {
-            var id = document.getElementById('seModalId').value;
-            if (!id) { showToast('No sales order selected', 'error'); return; }
-            var updates = {
-                customer: document.getElementById('seCustName').value,
-                contact: document.getElementById('seContactPerson').value,
-                email: document.getElementById('seEmailAddr').value,
-                phone: document.getElementById('sePhone').value,
-                status: document.getElementById('seStatus').value,
-                equipment: document.getElementById('seEquipment').value,
-                amount: parseFloat(document.getElementById('seBudget').value) || 0,
-                description: document.getElementById('seDescription').value,
-                installationDuration: document.getElementById('seInstDuration').value,
-                installationDueDate: document.getElementById('seInstDueDate').value,
-                handoverDuration: document.getElementById('seHandoverDuration').value,
-                handoverDueDate: document.getElementById('seHandoverDueDate').value,
-                projectCost: document.getElementById('seProjectCost').value,
-                amended: true,
-                amendedAt: new Date().toISOString()
-            };
-            DB.update('salesOrders', id, updates);
-            closeModal('salesEditModal');
-            renderSales();
-            showToast('✅ Amendment saved for ' + id);
-        }
-
-        function _printSalesOrderPDFInner(id) {
-            const so = DB.getById('salesOrders', id);
-            if (!so) return showToast('Sales order not found', 'error');
-
-            const fmtArr = (arr, cols) => {
-                if (!arr || !arr.length) return '<p style="color:#888;">— None —</p>';
-                const hdr = Object.values(cols).join('</th><th>');
-                const rows = arr.map(x => '<tr>' + Object.keys(cols).map(k => '<td>' + (x[k] || '—') + '</td>').join('') + '</tr>').join('');
-                return '<table style="width:100%;border-collapse:collapse;font-size:12px;margin:4px 0;"><tr style="background:#e5e7eb;"><th>' + hdr + '</th></tr>' + rows + '</table>';
-            };
-
-            const w = window.open('', '_blank', 'width=900,height=700');
-            w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + so.id + ' - Sales Order</title>');
-            w.document.write('<style>' +
-                'body{font-family:Arial,sans-serif;font-size:13px;color:#222;margin:30px;}' +
-                '.header{text-align:center;border-bottom:3px double #1e3a5f;padding-bottom:14px;margin-bottom:20px;}' +
-                '.header h1{margin:0;font-size:22px;color:#1e3a5f;}' +
-                '.header h3{margin:4px 0 0;font-size:14px;color:#555;font-weight:400;}' +
-                '.section{margin-bottom:16px;}' +
-                '.section h3{font-size:14px;color:#1e3a5f;border-bottom:1px solid #ccc;padding-bottom:4px;margin:0 0 8px;}' +
-                '.section p{margin:3px 0;}' +
-                '.section table{width:100%;border-collapse:collapse;margin:6px 0;}' +
-                '.section table td,.section table th{border:1px solid #ccc;padding:5px 8px;text-align:left;}' +
-                '.section table th{background:#e5e7eb;font-weight:600;font-size:12px;}' +
-                '.row{display:flex;gap:20px;flex-wrap:wrap;}' +
-                '.row > div{flex:1;min-width:200px;}' +
-                '.footer{text-align:center;margin-top:30px;padding-top:14px;border-top:1px solid #ccc;font-size:11px;color:#888;}' +
-                '.badge{display:inline-block;padding:2px 10px;border-radius:4px;font-size:12px;font-weight:600;}' +
-                '.badge-ok{background:#d1fae5;color:#065f46;}' +
-                '.badge-pending{background:#fef3c7;color:#92400e;}' +
-                '@media print{body{margin:15px;}.no-print{display:none;}}' +
-                '</style></head><body>');
-
-            const statusBadge = so.status === 'Completed' ? '<span class="badge badge-ok">' + so.status + '</span>' : '<span class="badge badge-pending">' + so.status + '</span>';
-
-            w.document.write('<div class="header"><h1>' + so.id + '</h1><h3>' + so.equipment + '</h3><p style="margin:6px 0 0;font-size:14px;"><strong>Customer:</strong> ' + so.customer + ' &nbsp;|&nbsp; <strong>Amount:</strong> RM ' + (so.amount||0).toLocaleString() + ' &nbsp;|&nbsp; <strong>Status:</strong> ' + statusBadge + '</p></div>');
-
-            // Customer info
-            w.document.write('<div class="section"><h3>👤 Customer Information</h3><div class="row"><div><p><strong>Company:</strong> ' + so.customer + '</p><p><strong>Contact:</strong> ' + (so.contact||'—') + '</p></div><div><p><strong>Email:</strong> ' + (so.email||'—') + '</p><p><strong>Phone:</strong> ' + (so.phone||'—') + '</p></div></div></div>');
-
-            // Description & Technical
-            w.document.write('<div class="section"><h3>📋 Scope & Technical Specifications</h3>');
-            w.document.write('<p><strong>Description:</strong> ' + (so.description||'—') + '</p>');
-            w.document.write('<table><tr><th>Design Pressure</th><th>Design Temp</th><th>Material / Grade</th><th>Head Type</th><th>Testing Req.</th></tr>');
-            w.document.write('<tr><td>' + (so.designPressure||'—') + '</td><td>' + (so.designTemperature||'—') + '</td><td>' + (so.shellHeadMaterial||'—') + '</td><td>' + (so.headType||'—') + '</td><td>' + (so.testingRequirement||'—') + '</td></tr></table></div>');
-
-            // Pressure equipment materials
-            w.document.write('<div class="section"><h3>🧱 Material & Item Requirement For Pressure Equipment</h3>');
-            w.document.write('<div class="row"><div><p><strong>Shell Material:</strong> ' + (so.shellMaterial||'—') + '</p><p><strong>Head Material:</strong> ' + (so.headMaterial||'—') + '</p>');
-            w.document.write('<p><strong>Mainhole:</strong> ' + (so.mainholeQty||'0') + ' × ' + (so.mainholeType||'—') + '</p>');
-            w.document.write('<p><strong>Blind Required:</strong> ' + (so.blindRequired||'No') + '</p>');
-            w.document.write('<p><strong>Saddle/Leg Material:</strong> ' + (so.saddleMaterial||'—') + '</p></div>');
-            w.document.write('<div><p><strong>Lifting Lug:</strong> ' + (so.liftingLug||'No') + '</p><p><strong>Bolt & Nut:</strong> ' + (so.boltNutSpec||'—') + '</p>');
-            w.document.write('<p><strong>Total Flanges:</strong> ' + (so.totalFlanges||'0') + '</p>');
-            w.document.write('<p><strong>Pressure Gauge:</strong> ' + (so.pressureGauge||'—') + '</p></div></div>');
-
-            if (so.nozzleItems && so.nozzleItems.length) {
-                w.document.write('<p style="margin:8px 0 2px;font-weight:600;">Nozzle Items:</p>' + fmtArr(so.nozzleItems, {size:'Size',qty:'Qty',mat:'Material'}));
-            }
-            if (so.flangeItems && so.flangeItems.length) {
-                w.document.write('<p style="margin:8px 0 2px;font-weight:600;">Flange Items:</p>' + fmtArr(so.flangeItems, {type:'Type',size:'Size'}));
-            }
-            if (so.safetyValves && so.safetyValves.length) {
-                w.document.write('<p style="margin:8px 0 2px;font-weight:600;">Safety Valves:</p>' + fmtArr(so.safetyValves, {model:'Model',size:'Size'}));
-            }
-            w.document.write('</div>');
-
-            // Boiler repair
-            if (so.boilerTubeSpec || (so.boilerTubes && so.boilerTubes.length)) {
-                w.document.write('<div class="section"><h3>🔥 Material For Boiler Repair</h3>');
-                w.document.write('<p><strong>Tube Specification:</strong> ' + (so.boilerTubeSpec||'—') + '</p>');
-                if (so.boilerTubes && so.boilerTubes.length) {
-                    w.document.write(fmtArr(so.boilerTubes, {spec:'Spec',size:'Size',qty:'Qty'}));
-                }
-                w.document.write('</div>');
-            }
-
-            // Non-pressure materials
-            const hasNp = so.npPlateItems?.length || so.npAngleItems?.length || so.npFlatItems?.length || so.npBeamItems?.length || so.npOtherMaterial;
-            if (hasNp) {
-                w.document.write('<div class="section"><h3>🔩 Material For Non-Pressure Equipment</h3>');
-                if (so.npPlateItems?.length) { w.document.write('<p style="margin:6px 0 2px;font-weight:600;">Plate:</p>' + fmtArr(so.npPlateItems, {size:'Size',spec:'Spec',qty:'Qty'})); }
-                if (so.npAngleItems?.length) { w.document.write('<p style="margin:6px 0 2px;font-weight:600;">Angle Bar:</p>' + fmtArr(so.npAngleItems, {size:'Size',spec:'Spec',qty:'Qty'})); }
-                if (so.npFlatItems?.length) { w.document.write('<p style="margin:6px 0 2px;font-weight:600;">Flat Bar:</p>' + fmtArr(so.npFlatItems, {size:'Size',spec:'Spec',qty:'Qty'})); }
-                if (so.npBeamItems?.length) { w.document.write('<p style="margin:6px 0 2px;font-weight:600;">H / I Beam:</p>' + fmtArr(so.npBeamItems, {size:'Size',spec:'Spec',qty:'Qty'})); }
-                if (so.npOtherMaterial) { w.document.write('<p><strong>Other:</strong> ' + so.npOtherMaterial + '</p>'); }
-                w.document.write('</div>');
-            }
-
-            // Work Order reference
-            if (so.woRef) {
-                w.document.write('<div class="section"><h3>🔗 Linked Work Order</h3><p><strong>WO:</strong> ' + so.woRef + '</p></div>');
-            }
-
-            // Footer
-            w.document.write('<div class="footer"><p>AD Deen Engineering ERP — Sales Order ' + so.id + '</p><p>Generated: ' + new Date().toLocaleString() + ' | Created: ' + (so.createdAt||'—') + '</p></div>');
-
-            w.document.write('<div class="no-print" style="text-align:center;margin-bottom:20px;"><button onclick="window.print()" style="padding:10px 28px;font-size:15px;cursor:pointer;background:#1e3a5f;color:#fff;border:none;border-radius:6px;">🖨️ Print / Save PDF</button></div>');
-            w.document.write('</body></html>');
-            w.document.close();
-        }
-
-        function generateWoFromSales(id) {
-            const so = DB.getById('salesOrders', id);
-            if (!so) return showToast('Sales order not found', 'error');
-            const now = new Date();
-            const woId = 'WO-' + now.getFullYear() + '-' + String(DB.get('workOrders').length + 1).padStart(4, '0');
-            const wo = {
-                id: woId, equipCategory: 'pressure', equipType: 'unfired-pv', scope: 'new',
-                codeRef: 'ASME Section VIII Div.1', type: 'Standard',
-                status: 'New', priority: 'Medium',
-                raisedBy: so.contact || 'Sales Team',
-                raisedDate: now.toISOString().split('T')[0] + ' ' + now.toLocaleTimeString(),
-                dueDate: '', title: so.equipment, client: so.customer, site: so.site || 'TBD',
-                description: so.description || so.equipment,
-                reason: 'Generated from Sales Order ' + so.id,
-                attachments: '', documents: [],
-                designPressure: so.designPressure || '', designTemperature: so.designTemperature || '', shellHeadMaterial: so.shellHeadMaterial || '',
-                headType: so.headType || '', testingRequirement: so.testingRequirement || '', drawingRef: '',
-                equipment: so.equipment, assetTag: '', trade: '',
-                laborHours: 0, requestedEquip: '',
-                upvNewDesignStatus: 'Pending',
-                approvalSteps: [
-                    { step: 0, role: 'Requester', action: 'Submit Work Order', status: 'Completed' },
-                    { step: 1, role: 'Engineering Manager', action: 'Verify scope & drawing', status: 'Pending' },
-                    { step: 2, role: 'Production Planner', action: 'Assign branch', status: 'Pending' },
-                ],
-                certifications: [], woRef: so.id, createdAt: now.toISOString().split('T')[0],
-                // Copy material requirement data from Sales Order
-                shellMaterial: so.shellMaterial || '',
-                headMaterial: so.headMaterial || '',
-                mainholeQty: so.mainholeQty || '0',
-                mainholeType: so.mainholeType || '',
-                nozzleItems: so.nozzleItems ? JSON.parse(JSON.stringify(so.nozzleItems)) : [],
-                flangeItems: so.flangeItems ? JSON.parse(JSON.stringify(so.flangeItems)) : [],
-                totalFlanges: so.totalFlanges || '0',
-                blindRequired: so.blindRequired || 'No',
-                saddleMaterial: so.saddleMaterial || '',
-                liftingLug: so.liftingLug || 'No',
-                boltNutSpec: so.boltNutSpec || '',
-                safetyValves: so.safetyValves ? JSON.parse(JSON.stringify(so.safetyValves)) : [],
-                pressureGauge: so.pressureGauge || '',
-                boilerTubeSpec: so.boilerTubeSpec || '',
-                boilerTubes: so.boilerTubes ? JSON.parse(JSON.stringify(so.boilerTubes)) : [],
-                npPlateItems: so.npPlateItems ? JSON.parse(JSON.stringify(so.npPlateItems)) : [],
-                npAngleItems: so.npAngleItems ? JSON.parse(JSON.stringify(so.npAngleItems)) : [],
-                npFlatItems: so.npFlatItems ? JSON.parse(JSON.stringify(so.npFlatItems)) : [],
-                npBeamItems: so.npBeamItems ? JSON.parse(JSON.stringify(so.npBeamItems)) : [],
-                npOtherMaterial: so.npOtherMaterial || ''
-            };
-            saveWithOwner('workOrders', wo);
-            DB.update('salesOrders', so.id, { woRef: woId, status: 'In Progress' });
-            renderSales();
-            showToast('🔗 Work Order ' + woId + ' generated from ' + so.id);
-        }
-
-        function deleteRecord(store, id, field) {
-            if (field === undefined) field = 'id';
-            if (!canUser('delete', store)) {
-                showToast('You do not have permission to delete this record.', 'error');
-                return;
-            }
-            if (!confirm('Delete ' + id + '? This cannot be undone.')) return;
-            if (DB.delete(store, id, field)) {
-                refreshAll();
-                showToast('🗑️ ' + id + ' deleted successfully', 'info');
-            } else {
-                showToast('Failed to delete ' + id, 'error');
-            }
-        }
-
-        function refreshAll() {
-            renderDashboardStats();
-            renderKanbanBoard();
-            renderJobsTable();
-            renderMarWorkOrders();
-            renderQualityStats();
-            renderInspections();
-            renderMethodStatements();
-            renderInventory();
-            renderAssets();
-            renderFabStats();
-            renderFabOrders();
-            renderDesignReviews();
-            renderCustomers();
-            renderEquipment();
-            renderPurchasing();
-            renderSales();
-            renderAccounting();
-            renderDocuments();
-            renderCosting();
-            updateHeaderStats();
-        }
-
-        // ========================================================================
-        //  EVENT LISTENERS
-        // ========================================================================
-        document.getElementById('customerSearch')?.addEventListener('keyup', function(e) {
-            const q = e.target.value.toLowerCase();
-            const filtered = DB.get('customers').filter(c =>
-                c.name.toLowerCase().includes(q) ||
-                c.company.toLowerCase().includes(q) ||
-                (c.email && c.email.toLowerCase().includes(q)) ||
-                (c.phone && c.phone.toLowerCase().includes(q))
-            );
-            document.getElementById('customersTable').innerHTML = filtered.map(c => `
-                <tr>
-                    <td><strong><span class="trace-link">${c.id}</span></strong></td>
-                    <td><strong>${c.company}</strong></td>
-                    <td>${c.name}</td>
-                    <td><a href="mailto:${c.email}" style="color:var(--info);text-decoration:none;">${c.email}</a></td>
-                    <td>${c.phone}</td>
-                    <td>${c.address ? c.address.split(',')[0] : '-'}</td>
-                    <td><span class="badge badge-${c.type.toLowerCase().replace(/\s+/g, '-')}">${c.type}</span></td>
-                    <td><span class="badge badge-${c.status.toLowerCase().replace(/\s+/g, '-')}">${c.status}</span></td>
-                    <td style="font-size:12px;">${c.since || '-'}</td>
-                    <td>
-                        <div class="btn-group">
-                            <button class="btn btn-xs btn-info" onclick="editCustomer('${c.id}')">Edit</button>
-                            <button class="btn btn-xs btn-danger" onclick="deleteRecord('customers','${c.id}')">Delete</button>
-                        </div>
-                    </td>
-                </tr>
-            `).join('');
-        });
-
-        document.getElementById('jobSearch')?.addEventListener('keyup', function(e) {
-            const q = e.target.value.toLowerCase();
-            const filtered = DB.get('workOrders').filter(wo =>
-                wo.id.toLowerCase().includes(q) ||
-                (wo.client || '').toLowerCase().includes(q) ||
-                (wo.title || '').toLowerCase().includes(q) ||
-                (wo.equipment || '').toLowerCase().includes(q) ||
-                (wo.assetTag || '').toLowerCase().includes(q)
-            );
-            document.getElementById('jobsTableBody').innerHTML = filtered.map(job => `
-                <tr>
-                    <td><strong>${job.id}</strong></td>
-                    <td>${job.client}</td>
-                    <td>${job.title || job.equipment}</td>
-                    <td>${(job.description || '').substring(0, 50)}</td>
-                    <td><span class="badge badge-${(job.status || '').toLowerCase().replace(/[\s-]+/g, '-')}">${job.status || 'New'}</span></td>
-                    <td>${job.trade || '—'}</td>
-                    <td>${job.priority}</td>
-                    <td>${job.dueDate || '—'}</td>
-                    <td><button class="btn btn-xs btn-info" onclick="openMarDetail('${job.id}')">View</button>
-                        <button class="btn btn-xs btn-danger" onclick="deleteRecord('workOrders','${job.id}')">Delete</button></td>
-                </tr>
-            `).join('');
-        });
-
-        document.getElementById('marSearch')?.addEventListener('keyup', function() { renderMarWorkOrders(); });
-        document.getElementById('salesSearch')?.addEventListener('keyup', function() { renderSales(); });
-        document.getElementById('prSearch')?.addEventListener('keyup', function() { renderPurchasing(); });
-
-        document.querySelectorAll('.modal-overlay').forEach(overlay => {
-            overlay.addEventListener('click', function(e) {
-                if (e.target === this) this.classList.remove('active');
-            });
-        });
-
-        // ========================================================================
-        //  INITIALIZATION
-        // ========================================================================
-        function init() {
-            // Check session
-            if (Auth.init()) {
-                document.getElementById('loginScreen').style.display = 'none';
-                document.getElementById('appContainer').classList.add('show');
-                updateUserUI(Auth.getUser());
-                refreshAll();
-                connectWs(); // Start WebSocket tracking
-                // Register with online tracker on session restore
-                try {
-                    if (typeof OnlineTracker !== 'undefined' && OnlineTracker.register) {
-                        OnlineTracker.register(Auth.getUser());
-                    } else if (typeof updateOnlineStatus === 'function') {
-                        updateOnlineStatus();
-                        updateOnlineIndicator();
-                    }
-                } catch(e) {}
-                console.log('✅ AD Deen Engineering ERP — Authenticated');
-            } else {
-                document.getElementById('loginScreen').style.display = 'flex';
-                console.log('🔐 Please sign in to continue');
-            }
-
-            // Set default date in job modal
-            const today = new Date().toISOString().split('T')[0];
-            const dueDate = document.getElementById('jobDueDate');
-            if (dueDate) {
-                const future = new Date();
-                future.setDate(future.getDate() + 21);
-                dueDate.value = future.toISOString().split('T')[0];
-            }
-
-            // Load saved settings
-            loadSettings();
-
-            // Navigate to saved default view
-            const settings = JSON.parse(localStorage.getItem('ad_deen_settings') || '{}');
-            if (settings.defaultView && settings.defaultView !== 'dashboard') {
-                const navItem = document.querySelector(`.nav-item[data-section="${settings.defaultView}"]`);
-                if (navItem) navigateTo(settings.defaultView, navItem);
-            }
-
-            console.log('⚙️ AD Deen Engineering ERP System');
-            console.log('📦 Database: localStorage (persistent)');
-        }
-
-        init();
-
-        // ===== DESIGN DEPARTMENT FUNCTIONS =====
-
-function renderDesignReviews() {
-    var orders = DB.get('salesOrders').filter(function(o) { return o.designStatus === 'Under Review' || o.designStatus === 'Submitted' || o.designStatus === 'Approved' || o.designStatus === 'Rejected'; });
-    orders.sort(function(a, b) { return (b.designSubmittedDate || b.createdAt || '').localeCompare(a.designSubmittedDate || a.createdAt || ''); });
-    var statusFilter = document.getElementById('designStatusFilter');
-    var fv = statusFilter ? statusFilter.value : 'all';
-    var search = (document.getElementById('designSearch') ? document.getElementById('designSearch').value : '').toLowerCase();
-    var typeRadios = document.querySelectorAll('input[name="designTypeFilter"]');
-    var typeFilter = 'all';
-    typeRadios.forEach(function(r) { if (r.checked) typeFilter = r.value; });
-    var filtered = orders.filter(function(o) {
-        if (fv !== 'all' && (o.designStatus || 'Pending') !== fv) return false;
-        if (typeFilter !== 'all' && o.type !== typeFilter) return false;
-        var s = search;
-        if (!s) return true;
-        return (o.id || '').toLowerCase().includes(s) || (o.productName || o.equipment || '').toLowerCase().includes(s) || (o.custName || o.customer || '').toLowerCase().includes(s);
-    });
-    var tbody = document.getElementById('designTable');
-    if (!tbody) return;
-    if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--text-secondary);">No design reviews found</td></tr>';
-        return;
-    }
-    tbody.innerHTML = filtered.map(function(o) {
-        var ds = o.designStatus || 'Pending';
-        var pe = o.peMaterials || {};
-        var rep = o.repairInfo || {};
-        var typeBadge = o.type === 'repair' ? '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:10px;font-size:11px;">🔧 Repair</span>' : '<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-size:11px;">🆕 Fab</span>';
-        var equipBadge = o.equipType === 'pressure-equipment' ? '🔴 PE' : o.equipType === 'non-pressure' ? '🟢 NP' : '';
-        var dwgInfo = '—';
-        if (o.type === 'fabrication') {
-            dwgInfo = (pe.designCheck || pe.fabCheck) ? '✅ Yes' : '❌ No';
-        } else if (o.type === 'repair') {
-            dwgInfo = rep.scope ? '📋 ' + rep.scope.substring(0, 30) : '—';
-        }
-        var statusBadge = ds === 'Approved' ? '<span class="badge badge-success">✅ Approved</span>'
-            : ds === 'Rejected' ? '<span class="badge badge-danger">❌ Rejected</span>'
-            : ds === 'Submitted' ? '<span class="badge badge-info">📤 Submitted</span>'
-            : '<span class="badge badge-warning">🔍 Under Review</span>';
-        var date = o.designSubmittedDate || (o.createdAt ? o.createdAt.slice(0, 10) : '—');
-        var details = o.type === 'repair'
-            ? (rep.equipName || '—')
-            : (pe.shellSpec || '—') + ' ' + (pe.shellSize || '') + ' | ' + (pe.headType || '');
-        var pmtNo = o.type === 'repair' ? (rep.regNo || o.id) : o.id;
-        var actions = '';
-        if (ds === 'Under Review' || ds === 'Submitted') {
-            actions = '<button class="btn btn-sm btn-success" onclick="approveDesignReview(\'' + o.id + '\')">✅</button> ' +
-                '<button class="btn btn-sm btn-danger" onclick="rejectDesignReview(\'' + o.id + '\')">❌</button> ' +
-                '<button class="btn btn-sm btn-ghost" onclick="openDesignDetailSO(\'' + o.id + '\')">👁️</button> ' +
-                '<button class="btn btn-sm btn-ghost" onclick="deleteDesignReview(\'' + o.id + '\')">🗑️</button>';
-        } else {
-            actions = '<button class="btn btn-sm btn-ghost" onclick="openDesignDetailSO(\'' + o.id + '\')">👁️</button> ' +
-                '<button class="btn btn-sm btn-ghost" onclick="deleteDesignReview(\'' + o.id + '\')">🗑️</button>';
-        }
-        return '<tr>' +
-            '<td><a href="#" onclick="openDesignDetailSO(\'' + o.id + '\');return false;" style="font-weight:600;">' + pmtNo + '</a><br><span style="font-size:11px;color:var(--text-muted);">' + typeBadge + ' ' + equipBadge + '</span></td>' +
-            '<td>' + (o.productName || o.equipment || '—') + '<br><span style="font-size:11px;color:var(--text-muted);">' + details + '</span></td>' +
-            '<td>' + (o.custName || o.customer || '—') + (o.contact ? '<br><span style="font-size:11px;">' + o.contact + '</span>' : '') + '</td>' +
-            '<td>' + o.id + '</td>' +
-            '<td>' + dwgInfo + '</td>' +
-            '<td>' + statusBadge + '</td>' +
-            '<td>' + date + '</td>' +
-            '<td style="white-space:nowrap;">' + actions + '</td>' +
-            '</tr>';
-    }).join('');
-    var stats =
-        '<div class="stat-card"><div class="stat-icon" style="background:#e0f2fe;color:#0284c7;">🔍</div><div class="stat-value">' + orders.filter(function(o) { return o.designStatus === 'Under Review'; }).length + '</div><div class="stat-label">Under Review</div></div>' +
-        '<div class="stat-card"><div class="stat-icon" style="background:#fef9c3;color:#ca8a04;">📤</div><div class="stat-value">' + orders.filter(function(o) { return o.designStatus === 'Submitted'; }).length + '</div><div class="stat-label">Submitted</div></div>' +
-        '<div class="stat-card"><div class="stat-icon" style="background:#dcfce7;color:#16a34a;">✅</div><div class="stat-value">' + orders.filter(function(o) { return o.designStatus === 'Approved'; }).length + '</div><div class="stat-label">Approved</div></div>' +
-        '<div class="stat-card"><div class="stat-icon" style="background:#fef2f2;color:#dc2626;">❌</div><div class="stat-value">' + orders.filter(function(o) { return o.designStatus === 'Rejected'; }).length + '</div><div class="stat-label">Rejected</div></div>';
-    document.getElementById('designStats').innerHTML = stats;
-}
-
-        function approveDesignReview(soId) {
-            var so = DB.getById('salesOrders', soId);
-            if (!so) return showToast('Sales order not found', 'error');
-            if (so.designStatus === 'Under Review') {
-                so.designStatus = 'Submitted';
-                so.designSubmittedDate = new Date().toISOString().split('T')[0];
-                DB.update('salesOrders', soId, so);
-                renderDesignReviews();
-                renderSales();
-                showToast('📤 ' + soId + ' design submitted — ready for final approval');
-                return;
-            }
-            // Check DOSH approval before creating WO
-            var dwf=so.designWorkFlow||[];
-            if(!dwf[2]||dwf[2].status!=='completed'){
-                showToast('⚠️ DOSH Design Approval (Step 03) must be completed before issuing Work Order','error');
-                renderDesignReviews();return;
-            }
-            if (!confirm('Approve design for ' + soId + '? This will create a Work Order.')) return;
-            so.designStatus = 'Approved';
-            so.designApprovedDate = new Date().toISOString().split('T')[0];
-            so.status = 'Design Approved';
-            DB.update('salesOrders', soId, so);
-            // Create Work Order from approved SO
-            var wo={id:DB.genId('workOrders'),salesId:so.id,woRef:so.id,custName:so.custName,client:so.custName,productName:so.productName,equipment:so.productName,type:so.type,equipType:so.equipType,status:'New',designStatus:'Approved',materials:so.materials||[],createdAt:new Date().toISOString(),
-                site:'',priority:'Medium',dueDate:'',
-                peMaterials:so.peMaterials||null,
-                designPressure:so.peMaterials?so.peMaterials.designPressure:'',designTemperature:so.peMaterials?so.peMaterials.designTemp:'',
-                shellHeadMaterial:so.peMaterials?((so.peMaterials.shellSpec||'')+(so.peMaterials.headSpec?' / '+so.peMaterials.headSpec:'')):'',
-                headType:so.peMaterials?so.peMaterials.headType:'',
-                description:'Sales Order '+so.id+' — '+so.productName+' for '+so.custName,
-                repairInfo:so.repairInfo||null,
-                branch:so.type==='repair'?'mar':'fab'
-            };
-            if(so.type==='repair'){
-                wo.testingRequirement=so.repairInfo&&so.repairInfo.tests?Object.keys(so.repairInfo.tests).filter(function(k){return so.repairInfo.tests[k];}).map(function(k){return k.charAt(0).toUpperCase()+k.slice(1);}).join(', '):'';
-                wo.marDoshReg=so.repairInfo?so.repairInfo.regNo||'':'';
-            }
-            saveWithOwner('workOrders',wo);
-            renderDesignReviews();
-            renderJobsTable();
-            renderKanbanBoard();
-            renderSales();
-            showToast('✅ Design approved for ' + soId + ' — Work Order ' + wo.id + ' created');
-        }
-
-        function rejectDesignReview(soId) {
-            const reason = prompt('Enter reason for rejection:');
-            if (reason === null) return;
-            var so = DB.getById('salesOrders', soId);
-            if (!so) return showToast('Sales order not found', 'error');
-            so.designStatus = 'Rejected';
-            so.designRejectedReason = reason;
-            so.designRejectedDate = new Date().toISOString().split('T')[0];
-            so.status = 'Design Rejected';
-            DB.update('salesOrders', soId, so);
-            renderDesignReviews();
-            renderSales();
-            showToast('❌ Design rejected for ' + soId);
-        }
-
-        function deleteDesignReview(soId){
-            if(!confirm('Delete sales order '+soId+'? This cannot be undone.'))return;
-            DB.delete('salesOrders',soId);
-            renderDesignReviews();
-            renderSales();
-            showToast('🗑️ '+soId+' deleted');
         }
 
 function openDesignDetailSO(soId) {
@@ -8260,44 +7660,6 @@ function addDesignModItem() {
         '<input type="text" class="form-control design-mod-modified" placeholder="Modified to" style="flex:1;font-size:11px;">' +
         '<button class="btn btn-xs btn-ghost" style="color:#dc2626;" onclick="this.closest(\'div\').remove()">✕</button>';
     list.appendChild(div);
-}
-
-function collectDesignNotes() {
-    var notesEl = document.getElementById('designNotesInput');
-    var notes = notesEl ? notesEl.value.trim() : '';
-    var items = [];
-    var itemEls = document.querySelectorAll('.design-mod-item');
-    var origEls = document.querySelectorAll('.design-mod-original');
-    var modEls = document.querySelectorAll('.design-mod-modified');
-    for (var i = 0; i < itemEls.length; i++) {
-        var item = itemEls[i] ? itemEls[i].value.trim() : '';
-        var orig = origEls[i] ? origEls[i].value.trim() : '';
-        var mod = modEls[i] ? modEls[i].value.trim() : '';
-        if (item || orig || mod) items.push({ item: item, original: orig, modified: mod });
-    }
-    return { notes: notes, modifiedItems: items };
-}
-
-function saveDesignNotesAndApprove(soId) {
-    var data = collectDesignNotes();
-    var so = DB.getById('salesOrders', soId);
-    if (!so) return showToast('Sales order not found', 'error');
-    if (data.notes) so.designNotes = data.notes;
-    if (data.modifiedItems.length) so.designModifiedItems = data.modifiedItems;
-    DB.update('salesOrders', soId, so);
-    closeModal('designReviewDetailModal');
-    approveDesignReview(soId);
-}
-
-function saveDesignNotesAndReject(soId) {
-    var data = collectDesignNotes();
-    var so = DB.getById('salesOrders', soId);
-    if (!so) return showToast('Sales order not found', 'error');
-    if (data.notes) so.designNotes = data.notes;
-    if (data.modifiedItems.length) so.designModifiedItems = data.modifiedItems;
-    DB.update('salesOrders', soId, so);
-    closeModal('designReviewDetailModal');
-    rejectDesignReview(soId);
 }
 
         function openDesignDetail(woId) {
@@ -10456,395 +9818,6 @@ function copyCalcToQuote() {
 }
     
 
-// ========== SALES NEW ORDER ==========
-function openSalesNewOrderModal(){
-    var el=document.getElementById('salesNewOrderModal');if(!el)return;
-    el.style.display='';el.classList.add('active');
-    var custSel=document.getElementById('soCustName');
-    if(custSel){custSel.innerHTML='<option value="">-- Select --</option>';
-        DB.get('customers').forEach(function(c){custSel.innerHTML+='<option value="'+c.id+'">'+(c.company||c.name)+' — '+c.name+'</option>';});}
-    ['soProductName','soContactPerson','soEmailAddr','soBudget','soPEShellSize','soPEShellSpec','soPEShellQty','soPEHeadSize','soPEHeadSpec','soPEHeadType','soPEHeadQty','soPESaddleName','soPESaddleSpec','soPESaddleQty','soPEOtherName','soPEOtherSpec','soPEOtherQty','soClientPONumber','soAssignedTo'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
-    setSalesOrderType('fab');setSalesEquipType('pe-fab');
-    ['soPENozzleList','soPEFlangeList','soPEOtherList','soNPMaterialList','soRepMaterialList','soFileList'].forEach(function(id){var e=document.getElementById(id);if(e)e.innerHTML='';});
-}
-function setSalesOrderType(t){
-    var fabFrame=document.getElementById('soFabFrame');
-    var repFrame=document.getElementById('soRepFrame');
-    if(fabFrame)fabFrame.style.display=(t==='fab')?'block':'none';
-    if(repFrame)repFrame.style.display=(t==='rep')?'block':'none';
-    var fabBtn=document.getElementById('soTypeFabBtn');
-    var repBtn=document.getElementById('soTypeRepBtn');
-    if(fabBtn){fabBtn.className=(t==='fab')?'btn':'btn btn-ghost';}
-    if(repBtn){repBtn.className=(t==='rep')?'btn':'btn btn-ghost';}
-}
-function setSalesEquipType(t){
-    var pe=document.getElementById('soPEFabFrame');
-    var np=document.getElementById('soNPFabFrame');
-    if(pe)pe.style.display=(t==='pe-fab')?'block':'none';
-    if(np)np.style.display=(t==='np-fab')?'block':'none';
-    var peBtn=document.getElementById('soEquipPEFabBtn');
-    var npBtn=document.getElementById('soEquipNPFabBtn');
-    if(peBtn){peBtn.className=(t==='pe-fab')?'btn':'btn btn-ghost';}
-    if(npBtn){npBtn.className=(t==='np-fab')?'btn':'btn btn-ghost';}
-}
-function onSoCustChange(){
-    var sel=document.getElementById('soCustName');
-    var manual=document.getElementById('soCustNameManual');
-    if(sel&&manual)manual.style.display=sel.value?'none':'block';
-    populateSoClientPOs();
-    if(sel&&sel.value){
-        var cust=DB.getById('customers',sel.value);
-        if(cust){
-            var cp=document.getElementById('soContactPerson');
-            var em=document.getElementById('soEmailAddr');
-            if(cp)cp.value=cust.contact||cust.name||'';
-            if(em)em.value=cust.email||'';
-        }
-        loadRepairEquipmentDropdown(sel.value);
-    } else {
-        loadRepairEquipmentDropdown(null);
-    }
-}
-function populateSoClientPOs(){
-    var sel=document.getElementById('soCustName');
-    var manual=document.getElementById('soCustNameManual');
-    var poSel=document.getElementById('soClientPONumber');
-    if(!poSel)return;
-    var company='';
-    if(sel&&sel.value){var cust=DB.getById('customers',sel.value);if(cust)company=cust.company||cust.name;}
-    else if(manual&&manual.value.trim()){company=manual.value.trim();}
-    var pos=DB.get('clientPOs').filter(function(p){return p.client===company||p.clientName===company||p.customer===company;});
-    poSel.innerHTML='<option value="">-- Select PO --</option>';
-    pos.forEach(function(p){poSel.innerHTML+='<option value="'+escHtml(p.poNumber||p.id)+'">'+escHtml(p.poNumber||p.id)+(p.description?' — '+escHtml(p.description):'')+'</option>';});
-}
-function addSoPENozzleRow(){
-    var list=document.getElementById('soPENozzleList');if(!list)return;
-    var row=document.createElement('div');row.className='flex gap-1 mt-1';
-    row.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;';
-    row.innerHTML='<input type="text" placeholder="Name" style="width:80px;font-size:12px;"><input type="text" placeholder="Size NB" style="width:70px;font-size:12px;"><select style="flex:1;min-width:130px;font-size:12px;"><option value="">Select Spec...</option><option>SA106 GR.B</option><option>SA320 TP304</option><option>SA320 TP316</option><option>SA312 TP304</option><option>SA312 TP316</option><option>SA105</option><option>SA182 F304</option><option>SA182 F316</option></select><input type="number" placeholder="Qty" style="width:60px;font-size:12px;" min="1"><button class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">X</button>';
-    list.appendChild(row);
-}
-function addSoPEFlangeRow(){
-    var list=document.getElementById('soPEFlangeList');if(!list)return;
-    var row=document.createElement('div');row.className='flex gap-1 mt-1';
-    row.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;';
-    row.innerHTML='<input type="text" placeholder="Name" style="width:80px;font-size:12px;"><input type="text" placeholder="Size NB" style="width:70px;font-size:12px;"><select style="flex:1;min-width:140px;font-size:12px;"><option value="">Select Spec...</option><option>A105</option><option>SA516 GR.70 (machined)</option><option>A182 F304</option><option>A182 F316</option><option>SA240 GR.304</option><option>SA240 GR.316</option></select><input type="number" placeholder="Qty" style="width:60px;font-size:12px;" min="1"><button class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">X</button>';
-    list.appendChild(row);
-}
-function addSoPEOtherRow(){
-    var list=document.getElementById('soPEOtherList');if(!list)return;
-    var row=document.createElement('div');row.className='flex gap-1 mt-1';
-    row.style.cssText='display:flex;gap:6px;align-items:center;flex-wrap:wrap;';
-    row.innerHTML='<input type="text" placeholder="Name" style="width:100px;font-size:12px;"><select style="flex:1;min-width:140px;font-size:12px;"><option value="">Select Spec...</option><option>SA516 GR.70</option><option>SA283 GR.C</option><option>SA240 GR.304</option><option>SA240 GR.316</option><option>SA36</option><option>JIS G3101 SS400</option><option>EN10025 S275JR</option><option>Angle Bar</option><option>Channel</option><option>I-Beam</option><option>Hollow Section</option></select><input type="number" placeholder="Qty" style="width:60px;font-size:12px;" min="1"><button class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">X</button>';
-    list.appendChild(row);
-}
-function addSalesMaterialRow(containerId){
-    var list=document.getElementById(containerId);if(!list)return;
-    var row=document.createElement('div');row.className='flex gap-1 mt-1';
-    row.innerHTML='<input type="text" placeholder="Description" style="flex:1"><input type="text" placeholder="Grade" style="width:80px"><input type="number" placeholder="Qty" style="width:60px"><input type="text" placeholder="Unit" style="width:60px"><button class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">X</button>';
-    list.appendChild(row);
-}
-function handleSalesFileUpload(e){
-    var files=e.target.files;var list=document.getElementById('soFileList');if(!list)return;
-    for(var i=0;i<files.length;i++){
-        var d=document.createElement('div');d.className='flex gap-1 mt-1 items-center';
-        d.innerHTML='<span>'+files[i].name+'</span><button class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">X</button>';
-        list.appendChild(d);
-    }
-}
-function saveAndSubmitSalesOrder(){
-    var custSel=document.getElementById('soCustName');
-    var custManual=document.getElementById('soCustNameManual');
-    var custId=custSel?custSel.value:'';
-    var custName=custManual?custManual.value:'';
-    if(custSel&&custSel.options[custSel.selectedIndex]){
-        var optText=custSel.options[custSel.selectedIndex].text;
-        custName=optText.split(' — ')[0]||optText;
-    }
-    if(!custName){alert('Please select a customer');return;}
-    var isRepair=document.getElementById('soRepFrame')&&document.getElementById('soRepFrame').style.display!=='none';
-    var isPE=document.getElementById('soPEFabFrame')&&document.getElementById('soPEFabFrame').style.display!=='none';
-    var orderType=isRepair?'repair':'fabrication';
-    var equipType=isPE?'pressure-equipment':'non-pressure';
-    var productName=getValue('soProductName')||'';
-    var contact=getValue('soContactPerson')||'';
-    var email=getValue('soEmailAddr')||'';
-    var budget=parseFloat(getValue('soBudget'))||0;
-    var installDur=getValue(isRepair?'soRepInstallDur':'soPEInstallDur')||getValue('soNPInstallDur')||'';
-    var installDate=getValue(isRepair?'soRepInstallDate':'soPEInstallDate')||getValue('soNPInstallDate')||'';
-    var handoverDur=getValue(isRepair?'soRepHandoverDur':'soPEHandoverDur')||getValue('soNPHandoverDur')||'';
-    var handoverDate=getValue(isRepair?'soRepHandoverDate':'soPEHandoverDate')||getValue('soNPHandoverDate')||'';
-    var projectCost=parseFloat(getValue(isRepair?'soRepProjectCost':'soPEProjectCost'))||parseFloat(getValue('soNPProjectCost'))||0;
-    var materials=[];
-    var matContainers=isRepair?['soRepMaterialList']:['soNPMaterialList'];
-    if(isPE){materials=collectPOMaterials();}
-    matContainers.forEach(function(cid){
-        var c=document.getElementById(cid);if(!c)return;
-        c.querySelectorAll('.flex.gap-1').forEach(function(row){
-            var inputs=row.querySelectorAll('input');
-            if(inputs.length>=3&&inputs[0].value)materials.push({desc:inputs[0].value,grade:inputs[1]?inputs[1].value:'',qty:parseFloat(inputs[2].value)||0,unit:inputs[3]?inputs[3].value:''});
-        });
-    });
-    var so={
-        id:DB.genId('salesOrders'),
-        custName:custName,custId:custId,contact:contact,email:email,
-        productName:productName,type:orderType,equipType:equipType,budget:budget,
-        customer:custName,equipment:productName,amount:budget,description:productName,
-        materials:materials,
-        installDuration:installDur,installDate:installDate,
-        handoverDuration:handoverDur,handoverDate:handoverDate,
-        projectCost:projectCost,
-        status:'Under Review',designStatus:'Under Review',createdAt:new Date().toISOString(),
-        clientPONumber:document.getElementById('soClientPONumber')?.value||'',
-        assignedTo:document.getElementById('soAssignedTo')?.value||''
-    };
-    if(isRepair){
-        so.repairInfo={equipName:getValue('soRepEquipName'),regNo:getValue('soRepRegNo'),serial:getValue('soRepSerial'),yearMfg:getValue('soRepYearMfg'),designP:getValue('soRepDesignP'),designT:getValue('soRepDesignT'),scope:getValue('soRepScope'),
-        tests:{hydro:isChecked('soRepTestHydro'),bubble:isChecked('soRepTestBubble'),dpt:isChecked('soRepTestDPT'),mpi:isChecked('soRepTestMPI'),xray:isChecked('soRepTestXRay'),visual:isChecked('soRepTestVisual'),ut:isChecked('soRepTestUT')}};
-    }
-    if(isPE){
-        so.peMaterials={
-            shellSize:getValue('soPEShellSize'),shellSpec:getValue('soPEShellSpec'),shellQty:getValue('soPEShellQty'),
-            headSize:getValue('soPEHeadSize'),headSpec:getValue('soPEHeadSpec'),headType:getValue('soPEHeadType'),headQty:getValue('soPEHeadQty'),
-            nozzleList:(function(){var main=[getValue('soPENozzleName'),getValue('soPENozzleSize'),getValue('soPENozzleSpec'),getValue('soPENozzleQty')];var rows=collectDivRows('soPENozzleList');if(main[1]||main[2])rows.unshift(main);return rows;})(),
-            flangeList:(function(){var main=[getValue('soPEFlangeName'),getValue('soPEFlangeSize'),getValue('soPEFlangeSpec'),getValue('soPEFlangeQty')];var rows=collectDivRows('soPEFlangeList');if(main[1]||main[2])rows.unshift(main);return rows;})(),
-            saddleName:getValue('soPESaddleName'),saddleSpec:getValue('soPESaddleSpec'),saddleQty:getValue('soPESaddleQty'),
-            otherName:getValue('soPEOtherName'),otherSpec:getValue('soPEOtherSpec'),otherQty:getValue('soPEOtherQty'),
-            otherList:(function(){var main=[getValue('soPEOtherName'),getValue('soPEOtherSpec'),getValue('soPEOtherQty')];var rows=collectDivRows('soPEOtherList');if(main[0]||main[1])rows.unshift(main);return rows;})(),misc:getValue('soPEMisc'),
-        designCheck:isChecked('soPECheckDesign'),fabCheck:isChecked('soPECheckFab'),
-        designPressure:getValue('soPEDesignPressure'),designPressureUnit:getValue('soPEDesignPressureUnit'),designTemp:getValue('soPEDesignTemp'),
-        designCode:getValue('soPEDesignCode')};
-    }
-    saveWithOwner('salesOrders',so);
-    // Create journal entry
-    if(projectCost>0){
-        var je={id:DB.genId('journal'),date:new Date().toISOString().slice(0,10),ref:'SO-'+so.id,desc:'Project cost - '+productName,lines:[{acct:'5000-COGS',dr:projectCost,cr:0},{acct:'1200-AR',dr:0,cr:projectCost}],status:'Posted'};
-        saveWithOwner('journal',je);
-    }
-    // Create accounting entry for Account Dept
-    var year=new Date().getFullYear();
-    var acCount=DB.get('accountingEntries').length+1;
-    var acId='GL-'+year+'-'+String(acCount).padStart(4,'0');
-    saveWithOwner('accountingEntries',{id:acId,date:new Date().toISOString().slice(0,10),description:'Sales Order '+so.id+' - '+productName+' ('+custName+')',debit:projectCost||0,credit:0,account:'Accounts Receivable'});
-    var acCount2=DB.get('accountingEntries').length+1;
-    saveWithOwner('accountingEntries',{id:'GL-'+year+'-'+String(acCount2).padStart(4,'0'),date:new Date().toISOString().slice(0,10),description:'Revenue recognition - '+so.id+' - '+productName,debit:0,credit:budget||0,account:'Revenue'});
-
-    closeModal('salesNewOrderModal');
-    renderSales();
-    renderAccounting();
-    showToast('Sales order created and sent to Design & Account','success');
-}
-function collectPOMaterials(){
-    var mats=[];
-    ['soPENozzleList','soPEFlangeList','soPEOtherList'].forEach(function(cid){
-        var c=document.getElementById(cid);if(!c)return;
-        c.querySelectorAll('.flex.gap-1,.flex').forEach(function(row){
-            var fields=[];
-            row.querySelectorAll('input,select').forEach(function(el){
-                var val=el.value;
-                if(val)fields.push(val);
-            });
-            if(fields.length>=2)mats.push({name:fields[0],size:fields[1],spec:fields[2]||'',qty:parseFloat(fields[fields.length-1])||0});
-        });
-    });
-    return mats;
-}
-function collectDivRows(divId){
-    var c=document.getElementById(divId);if(!c)return[];
-    var rows=[];
-    c.querySelectorAll('.flex.gap-1,.flex').forEach(function(row){
-        var fields=[];
-        row.querySelectorAll('input,select').forEach(function(el){
-            var val=el.tagName==='SELECT'?el.value:el.value;
-            if(val)fields.push(val);
-        });
-        if(fields.length)rows.push(fields);
-    });
-    return rows;
-}
-function printSalesOrderPDF(id){
-    var so = id ? DB.getById('salesOrders', id) : null;
-    if (!so) {
-        var isRep=document.getElementById('soRepFrame')&&document.getElementById('soRepFrame').style.display!=='none';
-        var isPE=document.getElementById('soPEFabFrame')&&document.getElementById('soPEFabFrame').style.display!=='none';
-        so = {
-            id: 'SO-NEW',
-            custName: (function(){
-                var s=document.getElementById('soCustName');
-                if(s&&s.options[s.selectedIndex])return s.options[s.selectedIndex].text.split(' — ')[0];
-                return (document.getElementById('soCustNameManual')||{}).value || '';
-            })(),
-            contact: getValue('soContactPerson'),
-            email: getValue('soEmailAddr'),
-            productName: getValue('soProductName'),
-            budget: getValue('soBudget'),
-            type: isRep ? 'Repair' : 'Fabrication',
-            equipType: isPE ? 'Pressure Equipment' : 'Non-Pressure',
-            designPressure: getValue('soPEDesignPressure') + ' ' + getValue('soPEDesignPressureUnit'),
-            designTemp: getValue('soPEDesignTemp') + ' °C',
-            peMaterials: {
-                shellSize: getValue('soPEShellSize'), shellSpec: getValue('soPEShellSpec'), shellQty: getValue('soPEShellQty'),
-                headSize: getValue('soPEHeadSize'), headSpec: getValue('soPEHeadSpec'), headType: getValue('soPEHeadType'), headQty: getValue('soPEHeadQty'),
-                nozzleList: collectDivRows('soPENozzleList'), flangeList: collectDivRows('soPEFlangeList'),
-                saddleName: getValue('soPESaddleName'), saddleSpec: getValue('soPESaddleSpec'), saddleQty: getValue('soPESaddleQty'),
-                otherName: getValue('soPEOtherName'), otherSpec: getValue('soPEOtherSpec'), otherQty: getValue('soPEOtherQty'),
-                otherList: collectDivRows('soPEOtherList'), misc: getValue('soPEMisc'),
-                designCheck: isChecked('soPECheckDesign'), fabCheck: isChecked('soPECheckFab'),
-                designPressure: getValue('soPEDesignPressure'), designPressureUnit: getValue('soPEDesignPressureUnit'), designTemp: getValue('soPEDesignTemp')
-            },
-            installDuration: getValue(isRep?'soRepInstallDur':'soPEInstallDur') || getValue('soNPInstallDur'),
-            installDate: getValue(isRep?'soRepInstallDate':'soPEInstallDate') || getValue('soNPInstallDate'),
-            handoverDuration: getValue(isRep?'soRepHandoverDur':'soPEHandoverDur') || getValue('soNPHandoverDur'),
-            handoverDate: getValue(isRep?'soRepHandoverDate':'soPEHandoverDate') || getValue('soNPHandoverDate'),
-            projectCost: getValue(isRep?'soRepProjectCost':'soPEProjectCost') || getValue('soNPProjectCost'),
-            status: 'Draft'
-        };
-        if(isRep){
-            so.repairInfo={equipName:getValue('soRepEquipName'),regNo:getValue('soRepRegNo'),serial:getValue('soRepSerial'),yearMfg:getValue('soRepYearMfg'),designP:getValue('soRepDesignP'),designT:getValue('soRepDesignT'),scope:getValue('soRepScope'),
-            tests:{hydro:isChecked('soRepTestHydro'),bubble:isChecked('soRepTestBubble'),dpt:isChecked('soRepTestDPT'),mpi:isChecked('soRepTestMPI'),xray:isChecked('soRepTestXRay'),visual:isChecked('soRepTestVisual'),ut:isChecked('soRepTestUT')}};
-            so.materials=[];
-            var repList=document.getElementById('soRepMaterialList');
-            if(repList)repList.querySelectorAll('.so-mat-row').forEach(function(row){var inp=row.querySelectorAll('input');if(inp.length>=2&&inp[0].value)so.materials.push({desc:inp[0].value,qty:inp[1].value});});
-        }
-    }
-    _printSOPdf(so);
-}
-
-function _printSOPdf(so) {
-    var w = window.open('', '_blank', 'width=900,height=700');
-    var css = 'body{font-family:Arial,sans-serif;font-size:12px;color:#222;margin:25px;line-height:1.5;}';
-    css += '.header{text-align:center;border-bottom:3px double #1e3a5f;padding-bottom:12px;margin-bottom:16px;}';
-    css += '.header h1{margin:0;font-size:20px;color:#1e3a5f;} .header h3{margin:4px 0 0;font-size:13px;color:#555;font-weight:400;}';
-    css += '.section{margin-bottom:14px;} .section h3{font-size:13px;color:#1e3a5f;border-bottom:1px solid #ccc;padding-bottom:3px;margin:0 0 6px;}';
-    css += '.section p{margin:2px 0;} .row{display:flex;gap:16px;flex-wrap:wrap;} .row>div{flex:1;min-width:180px;}';
-    css += 'table{width:100%;border-collapse:collapse;margin:4px 0;font-size:11px;}';
-    css += 'table td,table th{border:1px solid #ccc;padding:4px 6px;text-align:left;}';
-    css += 'table th{background:#e5e7eb;font-weight:600;font-size:11px;}';
-    css += '.footer{text-align:center;margin-top:24px;padding-top:10px;border-top:1px solid #ccc;font-size:10px;color:#888;}';
-    css += '@media print{body{margin:12px;}.no-print{display:none;}}';
-    w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+so.id+' - Sales Order</title>');
-    w.document.write('<style>'+css+'</style></head><body>');
-
-    // Header
-    w.document.write('<div class="header"><h1>SALES ORDER — '+so.id+'</h1><h3>AD Deen Engineering</h3>');
-    w.document.write('<p style="margin:6px 0 0;"><strong>Customer:</strong> '+(so.custName||'—')+' &nbsp;|&nbsp; <strong>Type:</strong> '+(so.type||'—')+' &nbsp;|&nbsp; <strong>Category:</strong> '+(so.equipType||'—')+' &nbsp;|&nbsp; <strong>Status:</strong> '+(so.status||'Draft')+'</p></div>');
-
-    // 1. Customer Info
-    w.document.write('<div class="section"><h3>1. Customer Information</h3><div class="row"><div>');
-    w.document.write('<p><strong>Customer:</strong> '+(so.custName||'—')+'</p>');
-    w.document.write('<p><strong>Contact Person:</strong> '+(so.contact||'—')+'</p>');
-    w.document.write('</div><div>');
-    w.document.write('<p><strong>Email:</strong> '+(so.email||'—')+'</p>');
-    w.document.write('<p><strong>Budget:</strong> RM '+(so.budget||'0')+'</p>');
-    w.document.write('</div></div></div>');
-
-    // 2. Product
-    w.document.write('<div class="section"><h3>2. Product / Equipment</h3>');
-    w.document.write('<p><strong>Product Name:</strong> '+(so.productName||'—')+'</p>');
-    w.document.write('<p><strong>Order Type:</strong> '+(so.type||'—')+' &nbsp;|&nbsp; <strong>Equipment Category:</strong> '+(so.equipType||'—')+'</p>');
-    w.document.write('</div>');
-
-    if (so.type !== 'Repair') {
-        if (so.equipType === 'Pressure Equipment') {
-            var pe = so.peMaterials || {};
-            // 3. Checklist & Design
-            w.document.write('<div class="section"><h3>3. Pressure Equipment — Checklist & Design</h3>');
-            w.document.write('<p><strong>Design Drawing:</strong> '+(so.designCheck?'Yes':'No')+' &nbsp;|&nbsp; <strong>Shop Fab Drawing:</strong> '+(so.fabCheck?'Yes':'No')+'</p>');
-            w.document.write('<p><strong>Design Pressure:</strong> '+(so.designPressure||'—')+' &nbsp;|&nbsp; <strong>Design Temperature:</strong> '+(so.designTemp||'—')+'</p>');
-            w.document.write('</div>');
-
-            // 4. Material List
-            w.document.write('<div class="section"><h3>4. Material List & Quantity</h3>');
-            w.document.write('<table><tr><th>Item</th><th>Name / Plate Size</th><th>Specification</th><th>Type</th><th>Qty</th></tr>');
-            if (pe.shellSpec||pe.shellSize) w.document.write('<tr><td>Shell</td><td>'+(pe.shellSize||'—')+'</td><td>'+pe.shellSpec+'</td><td>—</td><td>'+(pe.shellQty||'—')+'</td></tr>');
-            if (pe.headSpec||pe.headSize) w.document.write('<tr><td>Head</td><td>'+(pe.headSize||'—')+'</td><td>'+pe.headSpec+'</td><td>'+(pe.headType||'—')+'</td><td>'+(pe.headQty||'—')+'</td></tr>');
-            // Nozzle main + dynamic rows
-            var nMain={n:getValue('soPENozzleName'),s:getValue('soPENozzleSize'),sp:getValue('soPENozzleSpec'),q:getValue('soPENozzleQty')};
-            if(nMain.sp||nMain.s)w.document.write('<tr><td>Nozzle</td><td>'+nMain.n+' '+nMain.s+'</td><td>'+nMain.sp+'</td><td>—</td><td>'+nMain.q+'</td></tr>');
-            (pe.nozzleList||[]).forEach(function(r){w.document.write('<tr><td>Nozzle</td><td>'+((r[0]||'')+' '+(r[1]||''))+'</td><td>'+(r[2]||'—')+'</td><td>—</td><td>'+(r[3]||'—')+'</td></tr>');});
-            // Flange main + dynamic rows
-            var fMain={n:getValue('soPEFlangeName'),s:getValue('soPEFlangeSize'),sp:getValue('soPEFlangeSpec'),q:getValue('soPEFlangeQty')};
-            if(fMain.sp||fMain.s)w.document.write('<tr><td>Flange</td><td>'+fMain.n+' '+fMain.s+'</td><td>'+fMain.sp+'</td><td>—</td><td>'+fMain.q+'</td></tr>');
-            (pe.flangeList||[]).forEach(function(r){w.document.write('<tr><td>Flange</td><td>'+((r[0]||'')+' '+(r[1]||''))+'</td><td>'+(r[2]||'—')+'</td><td>—</td><td>'+(r[3]||'—')+'</td></tr>');});
-            if (pe.saddleSpec||pe.saddleName) w.document.write('<tr><td>Saddle/Leg</td><td>'+(pe.saddleName||'—')+'</td><td>'+pe.saddleSpec+'</td><td>—</td><td>'+(pe.saddleQty||'—')+'</td></tr>');
-            if (pe.otherSpec||pe.otherName) w.document.write('<tr><td>Other</td><td>'+(pe.otherName||'—')+'</td><td>'+pe.otherSpec+'</td><td>—</td><td>'+(pe.otherQty||'—')+'</td></tr>');
-            (pe.otherList||[]).forEach(function(r){w.document.write('<tr><td>Other</td><td>'+(r[0]||'—')+'</td><td>'+(r[1]||'—')+'</td><td>—</td><td>'+(r[2]||'—')+'</td></tr>');});
-            w.document.write('</table>');
-            if(pe.misc)w.document.write('<p><strong>Miscellaneous:</strong> '+pe.misc+'</p>');
-            w.document.write('</div>');
-
-            // 5. Installation & Handover
-            w.document.write('<div class="section"><h3>5. Installation & Handover</h3><div class="row"><div>');
-            w.document.write('<p><strong>Installation Duration:</strong> '+(so.installDuration||'—')+'</p>');
-            w.document.write('<p><strong>Installation Due Date:</strong> '+(so.installDate||'—')+'</p>');
-            w.document.write('</div><div>');
-            w.document.write('<p><strong>Handover Duration:</strong> '+(so.handoverDuration||'—')+'</p>');
-            w.document.write('<p><strong>Handover Due Date:</strong> '+(so.handoverDate||'—')+'</p>');
-            w.document.write('</div></div>');
-            w.document.write('<p><strong>Project Cost:</strong> RM '+(so.projectCost||'0')+'</p></div>');
-
-        } else {
-            // Non-Pressure
-            w.document.write('<div class="section"><h3>3. Non-Pressure Equipment</h3>');
-            w.document.write('<p><strong>Equipment Name:</strong> '+(getValue('soNPEquipName')||'—')+'</p>');
-            w.document.write('<p><strong>Scope of Work:</strong> '+(getValue('soNPScope')||'—')+'</p></div>');
-            var npMats=[];
-            var npList=document.getElementById('soNPMaterialList');
-            if(npList)npList.querySelectorAll('.so-mat-row').forEach(function(row){var inp=row.querySelectorAll('input');if(inp.length>=2&&inp[0].value)npMats.push({d:inp[0].value,q:inp[1].value});});
-            if(npMats.length){w.document.write('<div class="section"><h3>4. Material List</h3><table><tr><th>Description</th><th>Qty</th></tr>');npMats.forEach(function(m){w.document.write('<tr><td>'+m.d+'</td><td>'+m.q+'</td></tr>');});w.document.write('</table></div>');}
-            w.document.write('<div class="section"><h3>5. Installation & Handover</h3><div class="row"><div>');
-            w.document.write('<p><strong>Installation Duration:</strong> '+(getValue('soNPInstallDur')||'—')+'</p>');
-            w.document.write('<p><strong>Installation Due Date:</strong> '+(getValue('soNPInstallDate')||'—')+'</p></div><div>');
-            w.document.write('<p><strong>Handover Duration:</strong> '+(getValue('soNPHandoverDur')||'—')+'</p>');
-            w.document.write('<p><strong>Handover Due Date:</strong> '+(getValue('soNPHandoverDate')||'—')+'</p></div></div>');
-            w.document.write('<p><strong>Project Cost:</strong> RM '+(getValue('soNPProjectCost')||'0')+'</p></div>');
-        }
-    }
-
-    // === REPAIR ===
-    if (so.type === 'Repair') {
-        w.document.write('<div class="section"><h3>3. Equipment Details</h3><div class="row"><div>');
-        w.document.write('<p><strong>Equipment Name:</strong> '+(getValue('soRepEquipName')||'—')+'</p>');
-        w.document.write('<p><strong>Registration No:</strong> '+(getValue('soRepRegNo')||'—')+'</p>');
-        w.document.write('<p><strong>Serial No:</strong> '+(getValue('soRepSerial')||'—')+'</p>');
-        w.document.write('<p><strong>Year Manufactured:</strong> '+(getValue('soRepYearMfg')||'—')+'</p></div><div>');
-        w.document.write('<p><strong>Design Pressure:</strong> '+(getValue('soRepDesignP')||'—')+' bar</p>');
-        w.document.write('<p><strong>Design Temperature:</strong> '+(getValue('soRepDesignT')||'—')+' °C</p></div></div>');
-        w.document.write('<p><strong>Scope of Repair:</strong> '+(getValue('soRepScope')||'—')+'</p></div>');
-        var tests=[];
-        if(isChecked('soRepTestHydro'))tests.push('Hydrostatic Test');
-        if(isChecked('soRepTestBubble'))tests.push('Bubble Leak Test');
-        if(isChecked('soRepTestDPT'))tests.push('Dye Penetration Test');
-        if(isChecked('soRepTestMPI'))tests.push('Magnetic Particle Inspection');
-        if(isChecked('soRepTestXRay'))tests.push('X-Ray / Radiography');
-        if(isChecked('soRepTestVisual'))tests.push('Visual Inspection');
-        if(isChecked('soRepTestUT'))tests.push('Thickness Measurement');
-        w.document.write('<div class="section"><h3>4. Testing Requirements</h3><p>'+(tests.length?tests.join(', '):'—')+'</p></div>');
-        var repMats=[];
-        var repList=document.getElementById('soRepMaterialList');
-        if(repList)repList.querySelectorAll('.so-mat-row').forEach(function(row){var inp=row.querySelectorAll('input');if(inp.length>=2&&inp[0].value)repMats.push({d:inp[0].value,q:inp[1].value});});
-        if(repMats.length){w.document.write('<div class="section"><h3>5. Material List</h3><table><tr><th>Description</th><th>Qty</th></tr>');repMats.forEach(function(m){w.document.write('<tr><td>'+m.d+'</td><td>'+m.q+'</td></tr>');});w.document.write('</table></div>');}
-        w.document.write('<div class="section"><h3>6. Installation & Handover</h3><div class="row"><div>');
-        w.document.write('<p><strong>Installation Duration:</strong> '+(getValue('soRepInstallDur')||'—')+'</p>');
-        w.document.write('<p><strong>Installation Due Date:</strong> '+(getValue('soRepInstallDate')||'—')+'</p></div><div>');
-        w.document.write('<p><strong>Handover Duration:</strong> '+(getValue('soRepHandoverDur')||'—')+'</p>');
-        w.document.write('<p><strong>Handover Due Date:</strong> '+(getValue('soRepHandoverDate')||'—')+'</p></div></div>');
-        w.document.write('<p><strong>Project Cost:</strong> RM '+(getValue('soRepProjectCost')||'0')+'</p></div>');
-    }
-
-    // Attachments
-    var fl=document.getElementById('soFileList');
-    if(fl&&fl.children.length){
-        w.document.write('<div class="section"><h3>Attachments</h3><ul style="margin:0;padding-left:18px;">');
-        Array.from(fl.children).forEach(function(d){var sp=d.querySelector('span');if(sp)w.document.write('<li>'+sp.textContent+'</li>');});
-        w.document.write('</ul></div>');
-    }
-
-    w.document.write('<div class="footer">Generated on '+new Date().toLocaleString()+' — AD Deen Engineering ERP</div>');
-    w.document.write('<div class="no-print" style="text-align:center;margin-top:16px;"><button onclick="window.print()" style="padding:10px 24px;font-size:14px;cursor:pointer;">Print / Save as PDF</button></div>');
-    w.document.write('</body></html>');
-    w.document.close();
-}
 
 // ========== TONNES CALC OPENER ==========
 function openTonnesCalc(){
@@ -11472,7 +10445,6 @@ function saveDesignJob(){
     };
     DB.update('workOrders',woId,jobData);
     closeModal('designJobModal');
-    renderDesignReviews();
     showToast('Design job saved','success');
 }
 function getDesignMatRows(containerId){
@@ -11495,7 +10467,6 @@ function sendDesignToJobWO(){
     var status=approval?approval.value:'in-progress';
     DB.update('workOrders',woId,{designStatus:status==='approved'?'Approved':'Submitted',updatedAt:new Date().toISOString()});
     closeModal('designJobModal');
-    renderDesignReviews();
     showToast('Design sent to Job WO','success');
 }
 function sendDesignToQuality(){
@@ -11503,7 +10474,6 @@ function sendDesignToQuality(){
     if(!woId)return;
     DB.update('workOrders',woId,{designStatus:'Submitted',qualityRequired:true,updatedAt:new Date().toISOString()});
     closeModal('designJobModal');
-    renderDesignReviews();
     showToast('Sent to Quality Department','success');
 }
 
@@ -13209,35 +12179,6 @@ function loadRepairEquipmentDropdown(customerId) {
     }
     
     console.log('[REPAIR] Loaded ' + customerEq.length + ' equipment for customer');
-}
-
-function autoFillRepairEquipment(selectEl) {
-    var eqId = selectEl.value;
-    if (!eqId) return;
-    
-    var equipment = DB.get('equipment');
-    var eq = equipment.find(function(e) { return e.id === eqId; });
-    
-    if (!eq) return;
-    
-    // Auto-fill all repair fields
-    document.getElementById('soRepEquipName').value = eq.name || '';
-    document.getElementById('soRepRegNo').value = eq.regNo || eq.doshRegNo || '';
-    document.getElementById('soRepSerial').value = eq.serialNo || eq.assetTag || '';
-    document.getElementById('soRepYearMfg').value = eq.yearMfg || '';
-    document.getElementById('soRepDesignP').value = eq.designPressure || '';
-    document.getElementById('soRepDesignT').value = eq.designTemp || '';
-    document.getElementById('soRepScope').value = 'Repair for ' + eq.name + '\nMaterial: ' + (eq.material || 'N/A') + '\nAsset: ' + (eq.assetTag || eq.id);
-    
-    console.log('[REPAIR] Auto-filled equipment:', eq.name);
-    
-    // Check relevant test requirements
-    if (eq.testHydro) document.getElementById('soRepTestHydro').checked = true;
-    if (eq.testBubble) document.getElementById('soRepTestBubble').checked = true;
-    if (eq.testDPT) document.getElementById('soRepTestDPT').checked = true;
-    if (eq.testUT) document.getElementById('soRepTestUT').checked = true;
-    
-    showToast('Equipment details auto-filled!');
 }
 
 // ==================== PRESSURE CONVERTER ====================

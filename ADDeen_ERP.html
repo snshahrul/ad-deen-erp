@@ -1178,13 +1178,12 @@ document.addEventListener('click', function(event) {
 
                 <div class="section" id="sales-section">
                 <div class="page-header">
-                    <h2>SALES & BILLING</h2>
-                    <p>Sales orders, quotations, invoicing, and auto work order generation</p>
+                    <h2>BILLING & WORK ORDERS</h2>
+                    <p>Quotations, invoicing, and work order creation from client POs</p>
                 </div>
                 <div class="stats-grid" id="salesStats">
                 </div>
                 <div class="action-bar" style="margin:16px 0;display:flex;gap:8px;flex-wrap:wrap;">
-                    <button class="btn btn-primary" onclick="openSalesNewOrderModal()">+ New Sales Order</button>
                     <button class="btn btn-info" onclick="openQuotationModal()">📄 + New Quotation</button>
                     <button class="btn btn-info" onclick="openTonnesCalc()">⚖️ Tonnes Calculator</button>
                     <button class="btn btn-primary" onclick="openPVCalculator()">🔧 PV Calculator</button>
@@ -1192,31 +1191,16 @@ document.addEventListener('click', function(event) {
                     <button class="btn btn-secondary" onclick="openPressureConverter()">🔄 Pressure Converter</button>
                     <button class="btn btn-secondary" onclick="openUnitConverter()">📐 Unit Converter</button>
                 </div>
-                <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
-                    <div class="search-box" style="flex:1;min-width:220px;">
-                        <span class="search-icon">🔍</span>
-                        <input type="text" placeholder="Search by SO#, client, equipment..." id="salesSearch" oninput="renderSales()">
-                    </div>
-                    <select class="form-control" style="width:auto;min-width:160px;" id="salesStatusFilter" onchange="renderSales()">
-                        <option value="all">All Status</option>
-                        <option value="Pending">Pending</option>
-                        <option value="Under Review">Under Review</option>
-                        <option value="Submitted">Submitted</option>
-                        <option value="Design Approved">Design Approved</option>
-                        <option value="In Progress">In Progress</option>
-                        <option value="Completed">Completed</option>
-                    </select>
-                </div>
                 <div class="card" style="overflow-x:auto;">
-                    <div class="card-header"><h3>📋 Sales Orders</h3></div>
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>SO #</th><th>Client</th><th>Equipment</th><th>Work Scope Type</th><th>Amount (RM)</th><th>Status</th><th>Created</th><th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="salesOrdersTable"></tbody>
-                    </table>
+                    <div class="card-header"><h3>📋 Recent Work Orders (from Client POs)</h3></div>
+                    <div style="overflow-x:auto;">
+                        <table class="table">
+                            <thead>
+                                <tr><th>WO #</th><th>Client</th><th>Product</th><th>Type</th><th>Amount (RM)</th><th>Status</th><th>Created</th></tr>
+                            </thead>
+                            <tbody id="salesWorkOrdersTable"></tbody>
+                        </table>
+                    </div>
                 </div>
                 <div class="card" style="margin-top:16px;">
                     <div class="card-header"><h3>📄 Quotations</h3></div>
@@ -1422,146 +1406,6 @@ document.addEventListener('click', function(event) {
             </div>
 
             <div class="modal-body" style="max-height:72vh;overflow-y:auto;">
-                <!-- Sales-specific fields (hidden for WO, shown for SO) -->
-                <div id="soSalesFields" style="display:none;">
-                    <div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:18px;">
-                        <div class="form-row-2">
-                            <div class="form-group">
-                                <label class="form-label">Customer *</label>
-                                <select class="form-control" id="soCustomer" onchange="onCustomerSelect(this)">
-                                    <option>Select Customer...</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Contact Person</label>
-                                <input type="text" class="form-control" id="soContact" readonly style="background:var(--primary);">
-                            </div>
-                        </div>
-                        <div class="form-row-2">
-                            <div class="form-group">
-                                <label class="form-label">Email</label>
-                                <input type="text" class="form-control" id="soEmail" readonly style="background:var(--primary);">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Phone</label>
-                                <input type="text" class="form-control" id="soPhone" readonly style="background:var(--primary);">
-                            </div>
-                        </div>
-                        <div class="form-row-2">
-                            <div class="form-group">
-                                <label class="form-label">Amount (RM) *</label>
-                                <input type="number" class="form-control" id="soAmount" placeholder="0.00" min="0" step="0.01">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Material sections from old sales order -->
-                    <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:18px;">
-                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-                            <strong style="font-size:14px;">🧱 Material & Item Requirement</strong>
-                            <span style="font-size:11px;color:var(--text-muted);">Specify materials and components required</span>
-                        </div>
-
-                        <!-- Shell & Head Material -->
-                        <div class="form-row-2">
-                            <div class="form-group"><label class="form-label">Shell Material</label><select class="form-control" id="soShellMat" style="font-size:12px;"><option value="">— Select —</option><option>SA516 GR.70</option><option>SA240 GR.304</option><option>SA240 GR.316</option><option>SA387 GR.11</option><option>SA106 GR.B</option><option>A36 Carbon Steel</option><option>SA516 GR.60</option><option>SA537 CL.1</option><option>Other</option></select></div>
-                            <div class="form-group"><label class="form-label">Head Material</label><select class="form-control" id="soHeadMat" style="font-size:12px;"><option value="">— Select —</option><option>SA516 GR.70</option><option>SA240 GR.304</option><option>SA240 GR.316</option><option>SA387 GR.11</option><option>SA106 GR.B</option><option>A36 Carbon Steel</option><option>SA516 GR.60</option><option>Other</option></select></div>
-                        </div>
-
-                        <!-- Nozzle Assembly -->
-                        <div style="margin-top:12px;padding:10px 12px;background:#003333;border:1px solid var(--border);border-radius:var(--radius-sm);">
-                            <div style="font-weight:600;font-size:13px;margin-bottom:8px;">🔩 Nozzle Assembly</div>
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                                <div class="form-group"><label class="form-label">Mainhole Qty</label><input type="number" class="form-control" id="soMainholeQty" value="0" min="0" style="font-size:12px;"></div>
-                                <div class="form-group"><label class="form-label">Mainhole Type</label><select class="form-control" id="soMainholeType" style="font-size:12px;"><option value="">— Not specified —</option><option>Standard Manway 20"</option><option>Hinged</option><option>Blind / Blank</option></select></div>
-                            </div>
-                            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
-                                <div style="flex:1;min-width:80px;"><label class="form-label">Nozzle Size</label><input type="text" class="form-control" id="soNozzleSize" placeholder='e.g. 12" NPS' style="font-size:11px;"></div>
-                                <div style="flex:0 0 60px;"><label class="form-label">Qty</label><input type="number" class="form-control" id="soNozzleQty" value="1" min="1" style="font-size:11px;"></div>
-                                <div style="flex:1;min-width:80px;"><label class="form-label">Neck Material</label><select class="form-control" id="soNozzleMat" style="font-size:11px;"><option value="">— Select —</option><option>SA106 Gr.B</option><option>SA335 Gr.P11</option><option>SA312 TP304</option><option>A53 Gr.B</option></select></div>
-                                <div style="display:flex;align-items:end;padding-bottom:4px;"><button class="btn btn-xs btn-primary" onclick="addSoNozzleItem()">+ Add</button></div>
-                            </div>
-                            <div id="soNozzleList"></div>
-                            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
-                                <div style="flex:1;min-width:80px;"><label class="form-label">Flanges Type</label><select class="form-control" id="soFlangeType" style="font-size:11px;"><option value="">— Select —</option><option>WN (Weld Neck)</option><option>SO (Slip-On)</option><option>Blind Flange</option><option>Lap Joint</option><option>Socket Weld</option></select></div>
-                                <div style="flex:1;min-width:80px;"><label class="form-label">Flanges Size</label><input type="text" class="form-control" id="soFlangeSize" placeholder='e.g. 6" 150#' style="font-size:11px;"></div>
-                                <div style="flex:0 0 60px;display:flex;align-items:end;padding-bottom:4px;"><button class="btn btn-xs btn-primary" onclick="addSoFlangeItem()">+ Add</button></div>
-                            </div>
-                            <div id="soFlangeList"></div>
-                            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
-                                <div style="flex:1;"><label class="form-label">Total Flanges</label><input type="text" class="form-control" id="soTotalFlanges" value="0" style="font-size:12px;"></div>
-                                <div style="flex:1;"><label class="form-label">Blind Required</label><select class="form-control" id="soBlindReq" style="font-size:12px;"><option>No</option><option>Yes</option></select></div>
-                                <div style="flex:1;"><label class="form-label">Saddle/Leg Material</label><select class="form-control" id="soSaddleMat" style="font-size:12px;"><option value="">— Select —</option><option>A36 Carbon Steel</option><option>Stainless Steel 304</option><option>Other</option></select></div>
-                            </div>
-                            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
-                                <div style="flex:1;"><label class="form-label">Lifting Lug</label><select class="form-control" id="soLiftingLug" style="font-size:12px;"><option>No</option><option>Yes</option></select></div>
-                                <div style="flex:1;"><label class="form-label">Bolt & Nut Spec</label><select class="form-control" id="soBoltNut" style="font-size:12px;"><option value="">— Select —</option><option>ASTM A193 Gr.B7 / A194 Gr.2H</option><option>ASTM A320 Gr.L7 / A194 Gr.4</option><option>Stainless Steel 304</option></select></div>
-                                <div style="flex:1;"></div>
-                            </div>
-                            <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
-                                <div style="flex:1;"><label class="form-label">Safety Valve Model</label><input type="text" class="form-control" placeholder="e.g. Crosby JOS-E" id="soSvModel" style="font-size:12px;"></div>
-                                <div style="flex:0 0 80px;"><label class="form-label">Size</label><input type="text" class="form-control" placeholder='e.g. 1½" × 2½"' id="soSvSize" style="font-size:12px;"></div>
-                                <div style="flex:0 0 60px;display:flex;align-items:end;padding-bottom:4px;"><button class="btn btn-xs btn-primary" onclick="addSoSvItem()">+ Add</button></div>
-                            </div>
-                            <div id="soSvList"></div>
-                            <div class="form-group" style="margin-top:4px;"><label class="form-label">Pressure Gauge</label><input type="text" class="form-control" placeholder='0-200 PSI, 4" dial' id="soPressGauge" style="font-size:12px;"></div>
-                        </div>
-
-                        <!-- Boiler Repair Material -->
-                        <div style="margin-top:12px;padding:10px 12px;background:#003333;border:1px solid #fdba74;border-radius:var(--radius-sm);">
-                            <div style="font-weight:600;font-size:13px;margin-bottom:8px;">🔥 Material For Boiler Repair</div>
-                            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                                <div style="flex:1;"><label class="form-label">Boiler Tube Specification</label><input type="text" class="form-control" placeholder='SA-192, 2" OD × 0.120" wall' id="soBoilerTubeSpec" style="font-size:12px;"></div>
-                                <div style="flex:0 0 100px;"><label class="form-label">Size</label><input type="text" class="form-control" placeholder='2" OD' id="soBoilerTubeSize" style="font-size:12px;"></div>
-                                <div style="flex:0 0 60px;"><label class="form-label">Qty</label><input type="number" class="form-control" id="soBoilerTubeQty" value="1" min="1" style="font-size:12px;"></div>
-                                <div style="display:flex;align-items:end;padding-bottom:4px;"><button class="btn btn-xs btn-primary" onclick="addSoBoilerTubeItem()">+ Add</button></div>
-                            </div>
-                            <div id="soBoilerTubeList"></div>
-                        </div>
-
-                        <!-- Non-Pressure Equipment Material -->
-                        <div style="margin-top:12px;padding:10px 12px;background:#000066;border:1px solid #86efac;border-radius:var(--radius-sm);">
-                            <div style="font-weight:600;font-size:13px;margin-bottom:8px;">🔩 Material For Non-Pressure Equipment</div>
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                                <div><label class="form-label">Plate Size</label><input type="text" class="form-control" id="soNpPlateSize" placeholder="6mm × 1200 × 2400" style="font-size:11px;"></div>
-                                <div><label class="form-label">Plate Spec</label><input type="text" class="form-control" id="soNpPlateSpec" placeholder="A36" style="font-size:11px;"></div>
-                            </div>
-                            <div style="display:flex;gap:8px;margin-bottom:8px;">
-                                <div style="flex:0 0 60px;"><label class="form-label">Qty</label><input type="number" class="form-control" id="soNpPlateQty" value="1" min="1" style="font-size:11px;"></div>
-                                <div style="display:flex;align-items:end;"><button class="btn btn-xs btn-primary" onclick="addSoNpPlateItem()">+ Add Plate</button></div>
-                            </div>
-                            <div id="soNpPlateList"></div>
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
-                                <div><label class="form-label">Angle Bar Size</label><input type="text" class="form-control" id="soNpAngleSize" placeholder="L50×50×6" style="font-size:11px;"></div>
-                                <div><label class="form-label">Angle Bar Spec</label><input type="text" class="form-control" id="soNpAngleSpec" placeholder="A36" style="font-size:11px;"></div>
-                            </div>
-                            <div style="display:flex;gap:8px;margin-bottom:8px;">
-                                <div style="flex:0 0 60px;"><label class="form-label">Qty</label><input type="number" class="form-control" id="soNpAngleQty" value="1" min="1" style="font-size:11px;"></div>
-                                <div style="display:flex;align-items:end;"><button class="btn btn-xs btn-primary" onclick="addSoNpAngleItem()">+ Add Angle Bar</button></div>
-                            </div>
-                            <div id="soNpAngleList"></div>
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
-                                <div><label class="form-label">Flat Bar Size</label><input type="text" class="form-control" id="soNpFlatSize" placeholder="6mm × 50mm" style="font-size:11px;"></div>
-                                <div><label class="form-label">Flat Bar Spec</label><input type="text" class="form-control" id="soNpFlatSpec" placeholder="A36" style="font-size:11px;"></div>
-                            </div>
-                            <div style="display:flex;gap:8px;margin-bottom:8px;">
-                                <div style="flex:0 0 60px;"><label class="form-label">Qty</label><input type="number" class="form-control" id="soNpFlatQty" value="1" min="1" style="font-size:11px;"></div>
-                                <div style="display:flex;align-items:end;"><button class="btn btn-xs btn-primary" onclick="addSoNpFlatItem()">+ Add Flat Bar</button></div>
-                            </div>
-                            <div id="soNpFlatList"></div>
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
-                                <div><label class="form-label">H/I Beam Size</label><input type="text" class="form-control" id="soNpBeamSize" placeholder="200×200×8×12" style="font-size:11px;"></div>
-                                <div><label class="form-label">H/I Beam Spec</label><input type="text" class="form-control" id="soNpBeamSpec" placeholder="A36" style="font-size:11px;"></div>
-                            </div>
-                            <div style="display:flex;gap:8px;margin-bottom:8px;">
-                                <div style="flex:0 0 60px;"><label class="form-label">Qty</label><input type="number" class="form-control" id="soNpBeamQty" value="1" min="1" style="font-size:11px;"></div>
-                                <div style="display:flex;align-items:end;"><button class="btn btn-xs btn-primary" onclick="addSoNpBeamItem()">+ Add Beam</button></div>
-                            </div>
-                            <div id="soNpBeamList"></div>
-                            <div class="form-group" style="margin-top:8px;"><label class="form-label">Other Material Requirements</label><textarea class="form-control" id="soNpOtherMat" rows="2" placeholder="Any additional material not listed above..."></textarea></div>
-                        </div>
-                    </div>
-                </div>
                 <!-- Section 0: Code Reference -->
                 <div style="background:#fef9c3;border:1px solid #fde047;border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:18px;">
                     <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
@@ -2416,318 +2260,84 @@ document.addEventListener('click', function(event) {
         </div>
     </div>
 
-    <!-- ===================== SALES NEW ORDER MODAL ===================== -->
-    <div class="modal-overlay" id="salesNewOrderModal">
-        <div class="modal" style="max-width:900px;">
+    <!-- ===================== NEW WORK ORDER FROM PO ===================== -->
+    <div class="modal-overlay" id="newWorkOrderModal">
+        <div class="modal" style="max-width:700px;">
             <div class="modal-header">
-                <h3>💳 SALES NEW ORDER</h3>
-                <button class="modal-close" onclick="closeModal('salesNewOrderModal')">×</button>
+                <h3>📋 NEW WORK ORDER</h3>
+                <button class="modal-close" onclick="closeModal('newWorkOrderModal')">×</button>
             </div>
-            <div class="modal-body" style="max-height:75vh;overflow-y:auto;padding:20px 24px;">
-
-                <!-- Customer Frame -->
-                <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:var(--radius-sm);padding:16px;margin-bottom:16px;">
-                    <strong style="font-size:14px;display:block;margin-bottom:12px;">📋 Customer Frame</strong>
-                    <div class="form-group"><label class="form-label">Customer Name *</label>
-                        <select class="form-control" id="soCustName" onchange="onSoCustChange()">
-                            <option value="">Select Customer...</option>
+            <div class="modal-body" style="max-height:72vh;overflow-y:auto;">
+                <input type="hidden" id="nwoEditId" value="">
+                <input type="hidden" id="nwoPoId" value="">
+                <input type="hidden" id="nwoQuotationId" value="">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Client *</label>
+                        <select class="form-control" id="nwoClient" onchange="onNwoClientChange()">
+                            <option value="">-- Select Client --</option>
                         </select>
-                        <input type="text" class="form-control" id="soCustNameManual" placeholder="Or type customer manually" oninput="populateSoClientPOs()" style="margin-top:6px;font-size:12px;">
                     </div>
-                    <div class="form-group"><label class="form-label">Client PO Reference</label>
-                        <select class="form-control" id="soClientPONumber"><option value="">-- Select PO --</option></select></div>
-                    <div class="form-row-2">
-                        <div class="form-group"><label class="form-label">Contact Person</label><input type="text" class="form-control" id="soContactPerson" placeholder="Contact person"></div>
-                        <div class="form-group"><label class="form-label">Email Address</label><input type="email" class="form-control" id="soEmailAddr" placeholder="email@example.com"></div>
-                    </div>
-                    <div class="form-group"><label class="form-label">Amount (Budget) RM *</label><input type="number" class="form-control" id="soBudget" placeholder="0.00" min="0" step="0.01"></div>
-                    <div class="form-group"><label class="form-label">Assigned To</label><input type="text" class="form-control" id="soAssignedTo" placeholder="Enter person name"></div>
-                    <button class="btn btn-info" onclick="openPVCalculator()" style="margin-top:4px;">🔧 Auto-Calculate from Design Parameters</button>
-                </div>
-
-                <!-- Order Type Toggle -->
-                <div style="display:flex;gap:12px;margin-bottom:16px;">
-                    <button class="btn" id="soTypeFabBtn" onclick="setSalesOrderType('fab')" style="flex:1;padding:12px;font-weight:700;font-size:14px;background:var(--secondary);color:#fff;">🆕 NEW FABRICATION</button>
-                    <button class="btn btn-ghost" id="soTypeRepBtn" onclick="setSalesOrderType('rep')" style="flex:1;padding:12px;font-weight:700;font-size:14px;">🔧 REPAIR</button>
-                </div>
-
-                <!-- New Fabrication Frame -->
-                <div id="soFabFrame" style="display:none;">
-                    <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:var(--radius-sm);padding:16px;margin-bottom:16px;">
-                        <strong style="font-size:14px;display:block;margin-bottom:12px;">🏗️ New Fabrication Frame</strong>
-                        <div class="form-group"><label class="form-label">Product Name *</label><input type="text" class="form-control" id="soProductName" placeholder="Product / equipment name"></div>
-                        <div style="display:flex;gap:12px;margin-top:12px;">
-                            <button class="btn" id="soEquipPEFabBtn" onclick="setSalesEquipType('pe-fab')" style="flex:1;padding:10px;font-weight:600;background:var(--secondary);color:#fff;">⚙️ PRESSURE EQUIPMENT</button>
-                            <button class="btn btn-ghost" id="soEquipNPFabBtn" onclick="setSalesEquipType('np-fab')" style="flex:1;padding:10px;font-weight:600;">📦 NON-PRESSURE EQUIPMENT</button>
-                        </div>
-                    </div>
-
-                    <!-- Pressure Equipment Frame (Fabrication) -->
-                    <div id="soPEFabFrame" style="display:none;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:var(--radius-sm);padding:16px;margin-bottom:16px;">
-                        <strong style="font-size:14px;display:block;margin-bottom:10px;">⚙️ Pressure Equipment</strong>
-                        <div style="font-size:13px;font-weight:600;margin-bottom:8px;">Checklist:</div>
-                        <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:6px;"><input type="checkbox" id="soPECheckDesign" checked> Design Drawing</label>
-                        <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:6px;"><input type="checkbox" id="soPECheckFab" checked> Shop Fabrication Drawing</label>
-                        <div style="display:flex;gap:8px;margin-top:12px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
-                            <div style="display:flex;align-items:center;gap:4px;">
-                                <span style="font-size:12px;font-weight:600;">Design Code:</span>
-                                <select class="form-control" id="soPEDesignCode" style="width:200px;font-size:12px;">
-                                    <option value="ASME VIII Div 1">ASME VIII Div 1</option>
-                                    <option value="BS 2790">BS 2790</option>
-                                    <option value="BS 1113">BS 1113</option>
-                                    <option value="AD 2000 Merkblatt">AD 2000 Merkblatt</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-                            <div style="display:flex;align-items:center;gap:4px;">
-                                <span style="font-size:12px;font-weight:600;">Design Pressure:</span>
-                                <input type="number" class="form-control" id="soPEDesignPressure" placeholder="0" style="width:80px;font-size:12px;" min="0" step="0.1">
-                                <select class="form-control" id="soPEDesignPressureUnit" style="width:70px;font-size:12px;">
-                                    <option>bar</option><option>psi</option><option>kPa</option>
-                                </select>
-                            </div>
-                            <div style="display:flex;align-items:center;gap:4px;">
-                                <span style="font-size:12px;font-weight:600;">Design Temperature:</span>
-                                <input type="number" class="form-control" id="soPEDesignTemp" placeholder="0" style="width:80px;font-size:12px;" step="1">
-                                <span style="font-size:12px;">°C</span>
-                            </div>
-                        </div>
-                        <div style="margin-top:12px;">
-                            <div style="font-size:13px;font-weight:600;margin-bottom:10px;">Material List &amp; Quantity:</div>
-
-                            <!-- Shell Material -->
-                            <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
-                                <span style="font-size:12px;font-weight:600;min-width:90px;">Shell:</span>
-                                <input type="text" class="form-control" id="soPEShellSize" placeholder="Plate size" style="width:100px;font-size:12px;">
-                                <select class="form-control" id="soPEShellSpec" style="flex:1;min-width:150px;font-size:12px;">
-                                    <option value="">Select Spec...</option>
-                                    <option>SA516 GR.70</option><option>SA283 GR.C</option><option>SA240 GR.304</option><option>SA240 GR.316</option>
-                                    <option>SA36</option><option>JIS G3101 SS400</option><option>EN10025 S275JR</option>
-                                </select>
-                                <input type="number" class="form-control" id="soPEShellQty" placeholder="Qty" style="width:60px;font-size:12px;" min="1">
-                            </div>
-
-                            <!-- Head Material -->
-                            <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
-                                <span style="font-size:12px;font-weight:600;min-width:90px;">Head:</span>
-                                <input type="text" class="form-control" id="soPEHeadSize" placeholder="Plate size" style="width:100px;font-size:12px;">
-                                <select class="form-control" id="soPEHeadSpec" style="flex:1;min-width:130px;font-size:12px;">
-                                    <option value="">Select Spec...</option>
-                                    <option>SA516 GR.70</option><option>SA283 GR.C</option><option>SA240 GR.304</option><option>SA240 GR.316</option>
-                                    <option>SA36</option><option>JIS G3101 SS400</option><option>EN10025 S275JR</option>
-                                </select>
-                                <select class="form-control" id="soPEHeadType" style="width:140px;font-size:12px;">
-                                    <option value="">Head Type...</option>
-                                    <option>Torispherical Head</option><option>Ellipsoidal Head</option><option>Conical Head</option><option>Hemispherical Head</option><option>Flat Head</option>
-                                </select>
-                                <input type="number" class="form-control" id="soPEHeadQty" placeholder="Qty" style="width:60px;font-size:12px;" min="1">
-                            </div>
-
-                            <!-- Nozzle -->
-                            <div style="margin-bottom:8px;">
-                                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-                                    <span style="font-size:12px;font-weight:600;min-width:90px;">Nozzle:</span>
-                                    <input type="text" class="form-control" id="soPENozzleName" placeholder="Name" style="width:80px;font-size:12px;">
-                                    <input type="text" class="form-control" id="soPENozzleSize" placeholder="Size NB" style="width:70px;font-size:12px;">
-                                    <select class="form-control" id="soPENozzleSpec" style="flex:1;min-width:130px;font-size:12px;">
-                                        <option value="">Select Spec...</option>
-                                        <option>SA106 GR.B</option><option>SA320 TP304</option><option>SA320 TP316</option><option>SA312 TP304</option><option>SA312 TP316</option>
-                                        <option>SA105</option><option>SA182 F304</option><option>SA182 F316</option>
-                                    </select>
-                                    <input type="number" class="form-control" id="soPENozzleQty" placeholder="Qty" style="width:60px;font-size:12px;" min="1">
-                                    <button class="btn btn-xs btn-info" onclick="addSoPENozzleRow()">+ Add</button>
-                                </div>
-                                <div id="soPENozzleList" style="margin-top:4px;"></div>
-                            </div>
-
-                            <!-- Flanges -->
-                            <div style="margin-bottom:8px;">
-                                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-                                    <span style="font-size:12px;font-weight:600;min-width:90px;">Flanges:</span>
-                                    <input type="text" class="form-control" id="soPEFlangeName" placeholder="Name" style="width:80px;font-size:12px;">
-                                    <input type="text" class="form-control" id="soPEFlangeSize" placeholder="Size NB" style="width:70px;font-size:12px;">
-                                    <select class="form-control" id="soPEFlangeSpec" style="flex:1;min-width:140px;font-size:12px;">
-                                        <option value="">Select Spec...</option>
-                                        <option>A105</option><option>SA516 GR.70 (machined)</option><option>A182 F304</option><option>A182 F316</option>
-                                        <option>SA240 GR.304</option><option>SA240 GR.316</option>
-                                    </select>
-                                    <input type="number" class="form-control" id="soPEFlangeQty" placeholder="Qty" style="width:60px;font-size:12px;" min="1">
-                                    <button class="btn btn-xs btn-info" onclick="addSoPEFlangeRow()">+ Add</button>
-                                </div>
-                                <div id="soPEFlangeList" style="margin-top:4px;"></div>
-                            </div>
-
-                            <!-- Saddle/Leg -->
-                            <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
-                                <span style="font-size:12px;font-weight:600;min-width:90px;">Saddle/Leg:</span>
-                                <input type="text" class="form-control" id="soPESaddleName" placeholder="Name" style="width:100px;font-size:12px;">
-                                <select class="form-control" id="soPESaddleSpec" style="flex:1;min-width:140px;font-size:12px;">
-                                    <option value="">Select Spec...</option>
-                                    <option>SA516 GR.70</option><option>SA283 GR.C</option><option>SA240 GR.304</option><option>SA240 GR.316</option>
-                                    <option>SA36</option><option>JIS G3101 SS400</option><option>EN10025 S275JR</option>
-                                    <option>Angle Bar</option><option>Channel</option><option>I-Beam</option><option>Hollow Section</option>
-                                </select>
-                                <input type="number" class="form-control" id="soPESaddleQty" placeholder="Qty" style="width:60px;font-size:12px;" min="1">
-                            </div>
-
-                            <!-- Other Material -->
-                            <div style="margin-bottom:8px;">
-                                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-                                    <span style="font-size:12px;font-weight:600;min-width:90px;">Other:</span>
-                                    <input type="text" class="form-control" id="soPEOtherName" placeholder="Name" style="width:100px;font-size:12px;">
-                                    <select class="form-control" id="soPEOtherSpec" style="flex:1;min-width:140px;font-size:12px;">
-                                        <option value="">Select Spec...</option>
-                                        <option>SA516 GR.70</option><option>SA283 GR.C</option><option>SA240 GR.304</option><option>SA240 GR.316</option>
-                                        <option>SA36</option><option>JIS G3101 SS400</option><option>EN10025 S275JR</option>
-                                        <option>Angle Bar</option><option>Channel</option><option>I-Beam</option><option>Hollow Section</option>
-                                    </select>
-                                    <input type="number" class="form-control" id="soPEOtherQty" placeholder="Qty" style="width:60px;font-size:12px;" min="1">
-                                    <button class="btn btn-xs btn-info" onclick="addSoPEOtherRow()">+ Add</button>
-                                </div>
-                                <div id="soPEOtherList" style="margin-top:4px;"></div>
-                            </div>
-
-                            <!-- Miscellaneous -->
-                            <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;flex-wrap:wrap;">
-                                <span style="font-size:12px;font-weight:600;min-width:100px;padding-top:4px;">Miscellaneous:</span>
-                                <textarea class="form-control" id="soPEMisc" placeholder="Additional notes / items..." style="flex:3;min-width:200px;font-size:12px;" rows="2"></textarea>
-                            </div>
-                        </div>
-                        <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px;">
-                            <div style="font-size:13px;font-weight:600;margin-bottom:8px;">📅 Installation &amp; Handover</div>
-                            <div class="form-row-2">
-                                <div class="form-group"><label class="form-label">Installation Duration</label><input type="text" class="form-control" id="soPEInstallDur" placeholder="e.g. 2 weeks"></div>
-                                <div class="form-group"><label class="form-label">Installation Due Date</label><input type="date" class="form-control" id="soPEInstallDate"></div>
-                            </div>
-                            <div class="form-row-2">
-                                <div class="form-group"><label class="form-label">Handover Duration</label><input type="text" class="form-control" id="soPEHandoverDur" placeholder="e.g. 1 week"></div>
-                                <div class="form-group"><label class="form-label">Handover Due Date</label><input type="date" class="form-control" id="soPEHandoverDate"></div>
-                            </div>
-                            <div class="form-group"><label class="form-label">💰 Project Cost (RM)</label><input type="number" class="form-control" id="soPEProjectCost" placeholder="0.00" min="0" step="0.01"></div>
-                        </div>
-                        <div style="margin-top:14px;padding:10px;background:rgba(59,130,246,0.1);border-radius:var(--radius-sm);font-size:12px;color:var(--text-muted);">
-                            📌 All detail will refer to Design Department for specification confirmation and job order issuance.
-                        </div>
-                    </div>
-
-                    <!-- Non-Pressure Equipment Frame -->
-                    <div id="soNPFabFrame" style="display:none;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:var(--radius-sm);padding:16px;margin-bottom:16px;">
-                        <strong style="font-size:14px;display:block;margin-bottom:10px;">📦 Non-Pressure Equipment</strong>
-                        <div class="form-group"><label class="form-label">Equipment Name</label><input type="text" class="form-control" id="soNPEquipName" placeholder="Equipment name"></div>
-                        <div class="form-group"><label class="form-label">Scope of Work</label><textarea class="form-control" id="soNPScope" rows="3" placeholder="Describe scope of work"></textarea></div>
-                        <div style="margin-top:12px;">
-                            <div style="font-size:13px;font-weight:600;margin-bottom:6px;">Material List &amp; Quantity:</div>
-                            <div id="soNPMaterialList">
-                                <div class="so-mat-row" style="display:flex;gap:8px;margin-bottom:6px;">
-                                    <input type="text" class="form-control" placeholder="Material description" style="flex:2;font-size:12px;">
-                                    <input type="number" class="form-control" placeholder="Qty" style="width:80px;font-size:12px;" min="1">
-                                    <button class="btn btn-xs btn-ghost" onclick="this.closest('.so-mat-row').remove()" style="color:#dc2626;">✕</button>
-                                </div>
-                            </div>
-                            <button class="btn btn-xs btn-info" onclick="addSalesMaterialRow('soNPMaterialList')" style="margin-top:4px;">+ Add Line</button>
-                        </div>
-                        <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px;">
-                            <div style="font-size:13px;font-weight:600;margin-bottom:8px;">📅 Installation &amp; Handover</div>
-                            <div class="form-row-2">
-                                <div class="form-group"><label class="form-label">Installation Duration</label><input type="text" class="form-control" id="soNPInstallDur" placeholder="e.g. 2 weeks"></div>
-                                <div class="form-group"><label class="form-label">Installation Due Date</label><input type="date" class="form-control" id="soNPInstallDate"></div>
-                            </div>
-                            <div class="form-row-2">
-                                <div class="form-group"><label class="form-label">Handover Duration</label><input type="text" class="form-control" id="soNPHandoverDur" placeholder="e.g. 1 week"></div>
-                                <div class="form-group"><label class="form-label">Handover Due Date</label><input type="date" class="form-control" id="soNPHandoverDate"></div>
-                            </div>
-                            <div class="form-group"><label class="form-label">💰 Project Cost (RM)</label><input type="number" class="form-control" id="soNPProjectCost" placeholder="0.00" min="0" step="0.01"></div>
-                        </div>
+                    <div class="form-group">
+                        <label class="form-label">Contact Person</label>
+                        <input type="text" class="form-control" id="nwoContact" readonly>
                     </div>
                 </div>
-
-                <!-- Repair Frame -->
-                <div id="soRepFrame" style="display:none;">
-                    <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:var(--radius-sm);padding:16px;margin-bottom:16px;">
-                        <strong style="font-size:14px;display:block;margin-bottom:12px;">🔧 Pressure Equipment Repair</strong>
-                        <div class="form-row-2">
-                            <div class="form-group">
-                                <label class="form-label">Select Existing Equipment</label>
-                                <select class="form-control" id="soRepEquipmentSelect" onchange="autoFillRepairEquipment(this)" style="background:#fef3c7;font-weight:600;">
-                                    <option value="">-- Select Customer First --</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label" style="color:var(--text-muted);">or fill manually below</label>
-                                <span style="font-size:11px;color:var(--text-muted);">↓ Use fields below for new equipment</span>
-                            </div>
-                        </div>
-                        <div class="form-row-2">
-                            <div class="form-group"><label class="form-label">Equipment Name *</label><input type="text" class="form-control" id="soRepEquipName" placeholder="Equipment name"></div>
-                            <div class="form-group"><label class="form-label">Equipment Registration No.</label><input type="text" class="form-control" id="soRepRegNo" placeholder="e.g. DOSH/JKKP reg no"></div>
-                        </div>
-                        <div class="form-row-2">
-                            <div class="form-group"><label class="form-label">Serial No.</label><input type="text" class="form-control" id="soRepSerial" placeholder="Serial number"></div>
-                            <div class="form-group"><label class="form-label">Year Manufactured</label><input type="number" class="form-control" id="soRepYearMfg" placeholder="e.g. 2010" min="1900" max="2030"></div>
-                        </div>
-                        <div class="form-row-2">
-                            <div class="form-group"><label class="form-label">Design Pressure (bar)</label><input type="number" class="form-control" id="soRepDesignP" placeholder="Design pressure" min="0" step="0.1"></div>
-                            <div class="form-group"><label class="form-label">Design Temperature (°C)</label><input type="number" class="form-control" id="soRepDesignT" placeholder="Design temperature" step="1"></div>
-                        </div>
-                        <div class="form-group"><label class="form-label">Scope of Repair</label><textarea class="form-control" id="soRepScope" rows="3" placeholder="Describe the repair scope"></textarea></div>
-                        <div style="margin-top:12px;">
-                            <div style="font-size:13px;font-weight:600;margin-bottom:8px;">Testing Requirements:</div>
-                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px;">
-                                <label><input type="checkbox" id="soRepTestHydro"> Hydrostatic Test</label>
-                                <label><input type="checkbox" id="soRepTestBubble"> Bubble Leak Test</label>
-                                <label><input type="checkbox" id="soRepTestDPT"> Dye Penetration Test</label>
-                                <label><input type="checkbox" id="soRepTestMPI"> Magnetic Particle Inspection</label>
-                                <label><input type="checkbox" id="soRepTestXRay"> X-Ray / Radiography</label>
-                                <label><input type="checkbox" id="soRepTestVisual"> Visual Inspection</label>
-                                <label><input type="checkbox" id="soRepTestUT" checked> Thickness Measurement</label>
-                            </div>
-                        </div>
-                        <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px;">
-                            <div style="font-size:13px;font-weight:600;margin-bottom:8px;">📅 Installation &amp; Handover</div>
-                            <div class="form-row-2">
-                                <div class="form-group"><label class="form-label">Installation Duration</label><input type="text" class="form-control" id="soRepInstallDur" placeholder="e.g. 2 weeks"></div>
-                                <div class="form-group"><label class="form-label">Installation Due Date</label><input type="date" class="form-control" id="soRepInstallDate"></div>
-                            </div>
-                            <div class="form-row-2">
-                                <div class="form-group"><label class="form-label">Handover Duration</label><input type="text" class="form-control" id="soRepHandoverDur" placeholder="e.g. 1 week"></div>
-                                <div class="form-group"><label class="form-label">Handover Due Date</label><input type="date" class="form-control" id="soRepHandoverDate"></div>
-                            </div>
-                            <div class="form-group"><label class="form-label">💰 Project Cost (RM)</label><input type="number" class="form-control" id="soRepProjectCost" placeholder="0.00" min="0" step="0.01"></div>
-                        </div>
-                        <div style="margin-top:12px;">
-                            <div style="font-size:13px;font-weight:600;margin-bottom:6px;">Material List &amp; Quantity:</div>
-                            <div id="soRepMaterialList">
-                                <div class="so-mat-row" style="display:flex;gap:8px;margin-bottom:6px;">
-                                    <input type="text" class="form-control" placeholder="Material description" style="flex:2;font-size:12px;">
-                                    <input type="number" class="form-control" placeholder="Qty" style="width:80px;font-size:12px;" min="1">
-                                    <button class="btn btn-xs btn-ghost" onclick="this.closest('.so-mat-row').remove()" style="color:#dc2626;">✕</button>
-                                </div>
-                            </div>
-                            <button class="btn btn-xs btn-info" onclick="addSalesMaterialRow('soRepMaterialList')" style="margin-top:4px;">+ Add Line</button>
-                        </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Client PO Reference</label>
+                        <input type="text" class="form-control" id="nwoPONumber" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Linked Quotation</label>
+                        <input type="text" class="form-control" id="nwoQuotationRef" readonly>
                     </div>
                 </div>
-
-                <!-- Upload Area -->
-                <div style="background:rgba(99,102,241,0.06);border:2px dashed rgba(99,102,241,0.3);border-radius:var(--radius-sm);padding:20px;text-align:center;margin-bottom:16px;">
-                    <div style="font-size:28px;margin-bottom:8px;">📎</div>
-                    <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;">Attach Drawings or Documents</div>
-                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">Drag & drop files here or click to browse</div>
-                    <input type="file" id="soFileInput" multiple style="display:none;" onchange="handleSalesFileUpload(event)">
-                    <button class="btn btn-secondary" onclick="document.getElementById('soFileInput').click()">📁 Browse Files</button>
-                    <div id="soFileList" style="margin-top:10px;font-size:12px;text-align:left;"></div>
+                <div class="form-group">
+                    <label class="form-label">Product / Equipment *</label>
+                    <input type="text" class="form-control" id="nwoProductName" placeholder="e.g. Air Receiver, Pressure Vessel">
                 </div>
-
+                <div class="form-group">
+                    <label class="form-label">Description / Scope of Work</label>
+                    <textarea class="form-control" id="nwoDescription" rows="3" placeholder="Describe the scope of work..."></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Amount (RM)</label>
+                        <input type="number" class="form-control" id="nwoAmount" placeholder="0.00" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Order Type *</label>
+                        <select class="form-control" id="nwoType">
+                            <option value="fabrication">Fabrication</option>
+                            <option value="repair">Repair</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Priority</label>
+                        <select class="form-control" id="nwoPriority">
+                            <option value="Normal">Normal</option>
+                            <option value="Urgent">Urgent</option>
+                            <option value="Critical">Critical</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Assigned To</label>
+                        <select class="form-control" id="nwoAssignedTo">
+                            <option value="">-- Select --</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Due Date</label>
+                    <input type="date" class="form-control" id="nwoDueDate">
+                </div>
             </div>
-            <div class="modal-footer" style="display:flex;gap:8px;justify-content:space-between;">
-                <div style="display:flex;gap:8px;">
-                    <button class="btn btn-info" onclick="printSalesOrderPDF()">🖨️ Print PDF</button>
-                </div>
-                <div style="display:flex;gap:8px;">
-                    <button class="btn btn-ghost" onclick="closeModal('salesNewOrderModal')">Cancel</button>
-                    <button class="btn btn-primary" onclick="saveAndSubmitSalesOrder()">💾 Save, Submit to Design & Account</button>
-                </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeModal('newWorkOrderModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="saveNewWorkOrder()">💾 Save & Submit to Design</button>
             </div>
         </div>
     </div>
@@ -7143,63 +6753,6 @@ document.addEventListener('click', function(event) {
                 <button class="btn btn-secondary" onclick="printUtmReport()">🖨️ Print Report</button>
                 <button class="btn btn-primary" onclick="saveUtmReport()">💾 Save Report</button>
                 <button class="btn btn-ghost" onclick="closeModal('utmReportModal')">Close</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Sales Order View/Edit Modal -->
-    <div class="modal-overlay" id="salesEditModal" onclick="if(event.target===this)closeModal('salesEditModal')">
-        <div class="modal" style="max-width:700px;">
-            <div class="modal-header">
-                <h3>📝 Sales Order — <span id="seModalTitle">View / Edit</span></h3>
-                <button class="modal-close" onclick="closeModal('salesEditModal')">×</button>
-            </div>
-            <div class="modal-body" style="max-height:75vh;overflow-y:auto;padding:20px 24px;">
-                <input type="hidden" id="seModalId" value="">
-                <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:14px;margin-bottom:14px;">
-                    <strong style="font-size:13px;display:block;margin-bottom:10px;">👤 Customer Information</strong>
-                    <div class="form-group"><label class="form-label">Customer Name</label><input type="text" class="form-control" id="seCustName"></div>
-                    <div class="form-row-2">
-                        <div class="form-group"><label class="form-label">Contact Person</label><input type="text" class="form-control" id="seContactPerson"></div>
-                        <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-control" id="seEmailAddr"></div>
-                    </div>
-                    <div class="form-row-2">
-                        <div class="form-group"><label class="form-label">Phone</label><input type="text" class="form-control" id="sePhone"></div>
-                        <div class="form-group"><label class="form-label">Status</label>
-                            <select class="form-control" id="seStatus">
-                                <option>Pending</option><option>In Progress</option><option>Completed</option><option>Cancelled</option><option>design_approved</option><option>design_rejected</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div style="background:#fefce8;border:1px solid #fde68a;border-radius:6px;padding:14px;margin-bottom:14px;">
-                    <strong style="font-size:13px;display:block;margin-bottom:10px;">📋 Order Details</strong>
-                    <div class="form-row-2">
-                        <div class="form-group"><label class="form-label">Equipment / Product</label><input type="text" class="form-control" id="seEquipment"></div>
-                        <div class="form-group"><label class="form-label">Budget / Amount (RM)</label><input type="number" class="form-control" id="seBudget"></div>
-                    </div>
-                    <div class="form-group"><label class="form-label">Description</label><textarea class="form-control" id="seDescription" rows="2"></textarea></div>
-                </div>
-                <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:14px;margin-bottom:14px;">
-                    <strong style="font-size:13px;display:block;margin-bottom:10px;">⏱ Duration & Project Cost</strong>
-                    <div class="form-row-2">
-                        <div class="form-group"><label class="form-label">Installation Duration</label><input type="text" class="form-control" id="seInstDuration" placeholder="e.g. 2 weeks"></div>
-                        <div class="form-group"><label class="form-label">Installation Due Date</label><input type="date" class="form-control" id="seInstDueDate"></div>
-                    </div>
-                    <div class="form-row-2">
-                        <div class="form-group"><label class="form-label">Handover Duration</label><input type="text" class="form-control" id="seHandoverDuration" placeholder="e.g. 1 week"></div>
-                        <div class="form-group"><label class="form-label">Handover Due Date</label><input type="date" class="form-control" id="seHandoverDueDate"></div>
-                    </div>
-                    <div class="form-group"><label class="form-label">Project Cost (RM)</label><input type="number" class="form-control" id="seProjectCost" placeholder="0.00"></div>
-                </div>
-                <div style="background:#faf5ff;border:1px solid #d8b4fe;border-radius:6px;padding:14px;margin-bottom:14px;">
-                    <strong style="font-size:13px;display:block;margin-bottom:8px;">🧱 Materials Summary</strong>
-                    <div id="seMaterialSummary" style="font-size:13px;"></div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-ghost" onclick="closeModal('salesEditModal')">Cancel</button>
-                <button class="btn btn-primary" onclick="saveSalesAmendment()">💾 Save Amendment</button>
             </div>
         </div>
     </div>
