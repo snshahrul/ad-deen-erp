@@ -452,61 +452,68 @@ console.log('🤖 AI Assistant Ready — Click robot to open');
             }
 
             async init() {
-                // Try to sync from server
-            if (this._token) {
-                var data = await this._fetchApi('/api/data');
-                if (data) {
-                    Object.keys(data).forEach(function(key) {
-                        if (key === '_version' || key === 'lastUpdate') return;
-                        if (Array.isArray(data[key])) {
-                            this._cache[key] = JSON.parse(JSON.stringify(data[key]));
-                        }
-                    }.bind(this));
-                    this._cache._version = this.DB_VERSION;
-                    if (data.lastUpdate) this._cache.lastUpdate = data.lastUpdate;
+                if (this._token) {
+                    var data = await this._fetchApi('/api/data');
+                    if (data) {
+                        // Merge: server data fills gaps, never wipes local records
+                        Object.keys(data).forEach(function(key) {
+                            if (key === '_version' || key === 'lastUpdate') return;
+                            if (!Array.isArray(data[key])) return;
+                            if (!this._cache[key] || this._cache[key].length === 0) {
+                                this._cache[key] = JSON.parse(JSON.stringify(data[key]));
+                            } else {
+                                // Merge by ID — server records fill missing local ones
+                                var localIds = {};
+                                this._cache[key].forEach(function(r) { localIds[r.id] = true; });
+                                data[key].forEach(function(serverItem) {
+                                    if (!localIds[serverItem.id]) {
+                                        this._cache[key].push(JSON.parse(JSON.stringify(serverItem)));
+                                    }
+                                }.bind(this));
+                            }
+                        }.bind(this));
+                        this._cache._version = this.DB_VERSION;
+                        if (data.lastUpdate) this._cache.lastUpdate = data.lastUpdate;
+                        this._saveBackup();
+                        console.log('[DB] Synced from server');
+                        return this._cache;
+                    }
+                }
+                // Server offline or no token — seed local defaults if empty
+                if (!this._cache.users || this._cache.users.length === 0) {
+                    this._cache.users = [
+                        { id: 'U1', username: 'admin', password: 'admin123', name: 'Shahrul Azmi Salim Shah', role: 'Administrator', avatar: 'SA', email: 'design.addeen@sh-shahrul.com', phone: '+601139794166' },
+                        { id: 'U2', username: 'user', password: 'user123', name: 'Sollahuddin Ilias', role: 'Manager', avatar: 'SI', firstLogin: true, email: 'manager.addeen@sn-shahrul.com', phone: '+60193838699' },
+                        { id: 'U3', username: 'yazid', password: 'yazid123', name: 'Mohd Yazid', role: 'Engineer', avatar: 'MY', firstLogin: true },
+                    ];
                     this._saveBackup();
-                    console.log('[DB] Synced from server');
-                } else {
-                    
-            }       
-                    // Server offline — try to seed local defaults if empty
-            
-                    if (!this._cache.users || this._cache.users.length === 0) {
-                        this._cache.users = [
-                            { id: 'U1', username: 'admin', password: 'admin123', name: 'Shahrul Azmi Salim Shah', role: 'Administrator', avatar: 'SA', email: 'design.addeen@sh-shahrul.com', phone: '+601139794166' },
-                            { id: 'U2', username: 'user', password: 'user123', name: 'Sollahuddin Ilias', role: 'Manager', avatar: 'SI', firstLogin: true, email: 'manager.addeen@sn-shahrul.com', phone: '+60193838699' },
-                            { id: 'U3', username: 'yazid', password: 'yazid123', name: 'Mohd Yazid', role: 'Engineer', avatar: 'MY', firstLogin: true },
-                        ];
-                        this._saveBackup();
-                    }
-                    if (this._cache.inventory.length === 0) {
-                        this._cache.inventory = [
-                            { code: 'TUBE-2IN-SMLS', desc: 'Boiler Tube 2" OD Seamless SA-178', lot: 'LOT-2026-A001', location: 'WH-A-01', qty: 45, min: 20, unit: 'meters', status: 'In Stock', woLink: 'WO-2026-0001' },
-                            { code: 'ELEC-E7018-3.2', desc: 'Welding Electrode E7018 3.2mm', lot: 'LOT-2026-B001', location: 'WH-B-03', qty: 8, min: 50, unit: 'kg', status: 'Low Stock', woLink: 'WO-2026-0001' },
-                        ];
-                        this._saveBackup();
-                    }
-                    if (this._cache.customers.length === 0) {
-                        this._cache.customers = [
-                            { id: 'CUST-001', name: 'Petronas Refinery', contact: 'Ahmad Faizal', email: 'afaizal@petronas.com.my', phone: '+60-3-1234-5678', address: 'Kerteh, Terengganu', company: 'Petronas', type: 'Corporate', status: 'Active', since: '2019-06-15' },
-                            { id: 'CUST-002', name: 'Shell Malaysia', contact: 'Linda Tan', email: 'linda.tan@shell.com', phone: '+60-3-8765-4321', address: 'Port Dickson, Negeri Sembilan', company: 'Shell', type: 'Corporate', status: 'Active', since: '2020-03-22' },
-                        ];
-                        this._saveBackup();
-                    }
-                    if (this._cache.assets.length === 0) {
-                        this._cache.assets = [
-                            { id: 'EQ-001', name: 'Welding Machine Miller 350', lastService: '2026-01-05', nextDue: '2026-07-05', status: 'Operational' },
-                            { id: 'EQ-002', name: 'Hydrostatic Test Pump', lastService: '2025-12-15', nextDue: '2026-03-15', status: 'Due Soon' },
-                        ];
-                        this._saveBackup();
-                    }
-                    if (this._cache.documents.length === 0) {
-                        this._cache.documents = [
-                            { id: 'DOC-0001', name: 'Air Receiver GA Drawing Rev 4', type: 'Drawing', category: 'ASME', version: '4.0', description: 'General arrangement drawing for 2000L air receiver', tags: 'ASME, UV-Stamp, Pressure Vessel', status: 'Approved', createdAt: '2026-01-15T08:00:00Z' },
-                        ];
-                        this._saveBackup();
-                    }
-                    console.log('[DB] Server offline, using local cache');
+                }
+                if (!this._cache.inventory || this._cache.inventory.length === 0) {
+                    this._cache.inventory = [
+                        { code: 'TUBE-2IN-SMLS', desc: 'Boiler Tube 2" OD Seamless SA-178', lot: 'LOT-2026-A001', location: 'WH-A-01', qty: 45, min: 20, unit: 'meters', status: 'In Stock', woLink: 'WO-2026-0001' },
+                        { code: 'ELEC-E7018-3.2', desc: 'Welding Electrode E7018 3.2mm', lot: 'LOT-2026-B001', location: 'WH-B-03', qty: 8, min: 50, unit: 'kg', status: 'Low Stock', woLink: 'WO-2026-0001' },
+                    ];
+                    this._saveBackup();
+                }
+                if (!this._cache.customers || this._cache.customers.length === 0) {
+                    this._cache.customers = [
+                        { id: 'CUST-001', name: 'Petronas Refinery', contact: 'Ahmad Faizal', email: 'afaizal@petronas.com.my', phone: '+60-3-1234-5678', address: 'Kerteh, Terengganu', company: 'Petronas', type: 'Corporate', status: 'Active', since: '2019-06-15' },
+                        { id: 'CUST-002', name: 'Shell Malaysia', contact: 'Linda Tan', email: 'linda.tan@shell.com', phone: '+60-3-8765-4321', address: 'Port Dickson, Negeri Sembilan', company: 'Shell', type: 'Corporate', status: 'Active', since: '2020-03-22' },
+                    ];
+                    this._saveBackup();
+                }
+                if (!this._cache.assets || this._cache.assets.length === 0) {
+                    this._cache.assets = [
+                        { id: 'EQ-001', name: 'Welding Machine Miller 350', lastService: '2026-01-05', nextDue: '2026-07-05', status: 'Operational' },
+                        { id: 'EQ-002', name: 'Hydrostatic Test Pump', lastService: '2025-12-15', nextDue: '2026-03-15', status: 'Due Soon' },
+                    ];
+                    this._saveBackup();
+                }
+                if (!this._cache.documents || this._cache.documents.length === 0) {
+                    this._cache.documents = [
+                        { id: 'DOC-0001', name: 'Air Receiver GA Drawing Rev 4', type: 'Drawing', category: 'ASME', version: '4.0', description: 'General arrangement drawing for 2000L air receiver', tags: 'ASME, UV-Stamp, Pressure Vessel', status: 'Approved', createdAt: '2026-01-15T08:00:00Z' },
+                    ];
+                    this._saveBackup();
                 }
                 return this._cache;
             }
@@ -1112,7 +1119,11 @@ console.log('🤖 AI Assistant Ready — Click robot to open');
                     updateUserUI(user);
                     
                     if (typeof refreshAll === 'function') refreshAll();
-                    console.log('✅ Login successful as', user.role);
+                    console.log('Login successful as', user.role);
+                    // Sync token from server and refresh data
+                    DB.loginViaServer(username, password).then(function() {
+                        refreshAll();
+                    }).catch(function() {});
                 } else {
                     document.getElementById('loginError').textContent = 'Invalid username or password';
                     document.getElementById('loginError').style.display = 'block';
@@ -1261,9 +1272,8 @@ console.log('🤖 AI Assistant Ready — Click robot to open');
                 u.email = email;
                 u.phone = phone;
                 if (newPw) u.password = newPw;
-                const data = JSON.parse(localStorage.getItem('ad_deen_erp_db') || '{}');
-                data.users = users;
-                localStorage.setItem('ad_deen_erp_db', JSON.stringify(data));
+                DB._cache.users = users;
+                DB._saveBackup();
                 // Update session user so changes reflect immediately
                 user.email = email;
                 user.phone = phone;
@@ -4762,9 +4772,8 @@ window.addEventListener('DOMContentLoaded', function() {
                 job.actualManHours = document.getElementById('marCloseHours').value;
                 job.actualMaterialCost = document.getElementById('marCloseMatCost').value;
                 job.actualLabourCost = document.getElementById('marCloseLabCost').value;
-                const data = JSON.parse(localStorage.getItem('ad_deen_erp_db') || '{}');
-                data.workOrders = jobs;
-                localStorage.setItem('ad_deen_erp_db', JSON.stringify(data));
+                DB._cache.workOrders = jobs;
+                DB._saveBackup();
             }
             closeModal('woMarDetailModal');
             refreshAll();
@@ -5198,19 +5207,18 @@ window.addEventListener('DOMContentLoaded', function() {
             saveWithOwner('fabOrders', fo);
 
             // Update WO status to In Fab
-            const data = JSON.parse(localStorage.getItem('ad_deen_erp_db') || '{}');
-            const jobs = data.workOrders || [];
+            const jobs = DB.get('workOrders');
             const idx = jobs.findIndex(j => j.id === _currentMarWoId);
             if (idx !== -1) {
                 jobs[idx].status = 'In Fab';
                 jobs[idx].fabWizard = wizData;
-                data.workOrders = jobs;
-                localStorage.setItem('ad_deen_erp_db', JSON.stringify(data));
+                DB._cache.workOrders = jobs;
+                DB._saveBackup();
             }
 
             closeModal('woMarDetailModal');
             refreshAll();
-            showToast('🏭 Fabrication Order ' + foId + ' created from ' + _currentMarWoId);
+            showToast('Fabrication Order ' + foId + ' created from ' + _currentMarWoId);
             _currentMarWoId = null;
             _isFabWo = false;
         }
@@ -5450,19 +5458,18 @@ window.addEventListener('DOMContentLoaded', function() {
 
             saveWithOwner('fabOrders', fo);
 
-            const data = JSON.parse(localStorage.getItem('ad_deen_erp_db') || '{}');
-            const jobs = data.workOrders || [];
-            const idx = jobs.findIndex(j => j.id === _currentMarWoId);
-            if (idx !== -1) {
-                jobs[idx].status = 'In Fab';
-                jobs[idx].fabWizard = wiz;
-                jobs[idx].designPressure = designP;
-                jobs[idx].designTemperature = designT;
-                jobs[idx].shellHeadMaterial = material;
-                jobs[idx].headType = headType;
-                jobs[idx].testingRequirement = testingReq;
-                data.workOrders = jobs;
-                localStorage.setItem('ad_deen_erp_db', JSON.stringify(data));
+            const jobs3 = DB.get('workOrders');
+            const idx3 = jobs3.findIndex(j => j.id === _currentMarWoId);
+            if (idx3 !== -1) {
+                jobs3[idx3].status = 'In Fab';
+                jobs3[idx3].fabWizard = wiz;
+                jobs3[idx3].designPressure = designP;
+                jobs3[idx3].designTemperature = designT;
+                jobs3[idx3].shellHeadMaterial = material;
+                jobs3[idx3].headType = headType;
+                jobs3[idx3].testingRequirement = testingReq;
+                DB._cache.workOrders = jobs3;
+                DB._saveBackup();
             }
 
             closeModal('woMarDetailModal');
@@ -13005,19 +13012,16 @@ document.addEventListener('click', function(event) {
 function handleLogout() {
     try {
         if (typeof OnlineTracker !== 'undefined' && OnlineTracker.logout) {
-            var user = typeof Auth !== 'undefined' && Auth.getUser ? Auth.getUser() : { username: 'admin' };
+            var user = Auth.getUser ? Auth.getUser() : { username: 'admin' };
             OnlineTracker.logout(user);
         }
     } catch(e) {}
-    
-    sessionStorage.removeItem('erp_session');
-    
+    Auth.logout();
     var loginScreen = document.getElementById('loginScreen');
     var appContainer = document.getElementById('appContainer');
     if (loginScreen) loginScreen.style.display = 'flex';
     if (appContainer) appContainer.style.display = 'none';
-    
-    showToast('👋 Logged out successfully');
+    showToast('Logged out successfully');
 }
 
 function addMsStep() {
