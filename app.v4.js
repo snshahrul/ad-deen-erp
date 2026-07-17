@@ -4244,14 +4244,20 @@ window.addEventListener('DOMContentLoaded', function() {
                     }
                 });
                 if(!matSummary.length){
-                    // Try from linked Work Order peMaterials
-                    var so=job.salesId?DB.getById('salesOrders',job.salesId):job.woRef?DB.getById('salesOrders',job.woRef):null;
-                    if(so&&so.peMaterials){
-                        var pe=so.peMaterials;
-                        if(pe.shellSpec)matSummary.push('Shell: '+pe.shellSpec+(pe.shellQty?' × '+pe.shellQty:''));
-                        if(pe.headSpec)matSummary.push('Head: '+pe.headSpec+(pe.headQty?' × '+pe.headQty:''));
-                        if(pe.nozzleList)matSummary.push('Nozzles: '+pe.nozzleList.map(function(n){return (n.s||'')+' '+(n.sp||'');}).join(', '));
-                        if(pe.flangeList)matSummary.push('Flanges: '+pe.flangeList.map(function(f){return (f.s||'')+' '+(f.sp||'');}).join(', '));
+                    // Try from linked quotation items
+                    var qtItems = job.items || [];
+                    if(!qtItems.length && job.quotationId) {
+                        var qt = DB.getById('quotations', job.quotationId, 'id');
+                        if(qt && qt.items) qtItems = qt.items;
+                    }
+                    if(!qtItems.length && job.poId) {
+                        var po = DB.getById('clientPOs', job.poId, 'id');
+                        if(po && po.items) qtItems = po.items;
+                    }
+                    if(qtItems.length) {
+                        qtItems.forEach(function(item) {
+                            matSummary.push(item.description + (item.qty ? ' × ' + item.qty : ''));
+                        });
                     }
                 }
                 var jobMat=document.getElementById('wo_fabMaterialList');
@@ -4301,16 +4307,15 @@ window.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                 }
-                // PO ref from linked Work Order
-                var soPO=job.salesId?DB.getById('salesOrders',job.salesId):job.woRef?DB.getById('salesOrders',job.woRef):null;
-                if(soPO&&soPO.clientPO){
+                // PO ref from linked Client PO
+                var linkedPO = job.poId ? DB.getById('clientPOs', job.poId, 'id') : null;
+                if(linkedPO){
                     var poEl=document.getElementById('wo_fabPO');
-                    if(poEl) poEl.value=soPO.clientPO;
+                    if(poEl) poEl.value=linkedPO.poNumber || '';
                 }
-                // Dates - use WO dates or linked SO dates
-                var soDates=soPO||null;
-                var sDate=job.startDate||job.installDate||(soDates?soDates.installDate:'');
-                var eDate=job.endDate||(soDates?soDates.handoverDate:'');
+                // Dates - use WO dates or PO dates
+                var sDate=job.startDate||job.installDate||(linkedPO?linkedPO.date:'');
+                var eDate=job.endDate||'';
                 var dDate=job.dueDate||job.deliveryDate||(soDates?soDates.handoverDate:'');
                 var stEl=document.getElementById('wo_fabStartDate');if(stEl&&sDate) stEl.value=sDate;
                 var enEl=document.getElementById('wo_fabEndDate');if(enEl&&eDate) enEl.value=eDate;
@@ -4785,38 +4790,34 @@ window.addEventListener('DOMContentLoaded', function() {
             const btn = document.getElementById('toggleSoMatBtn');
             const show = el.style.display !== 'block';
             el.style.display = show ? 'block' : 'none';
-            btn.textContent = show ? '🙈 Hide Material Data' : '📋 Show Material Data from Sales';
+            btn.textContent = show ? '🙈 Hide Material Data' : '📋 Show Material Data';
         }
 
         function approveMaterialsForPurchase(){
             if(!_currentMarWoId)return showToast('No work order selected','error');
             var job=DB.getById('workOrders',_currentMarWoId);
             if(!job)return showToast('Work order not found','error');
-            var so=job.salesId?DB.getById('salesOrders',job.salesId):job.woRef?DB.getById('salesOrders',job.woRef):null;
-            if(!so)return showToast('No linked Work Order found','error');
-            if(!confirm('Approve all materials from '+so.id+' for Purchase Requisition?'))return;
-            // Create Purchase Requisition from Work Order materials
-            var pe=so.peMaterials||{};
-            var ri=so.repairInfo||{};
-            var matItems=[];
-            if(so.equipType==='Pressure Equipment'||(so.equipType||'').includes('Pressure')){
-                if(pe.shellSpec)matItems.push({desc:'Shell Plate',spec:pe.shellSpec,size:pe.shellSize,qty:pe.shellQty});
-                if(pe.headSpec)matItems.push({desc:'Head Plate ('+(pe.headType||'')+')',spec:pe.headSpec,size:pe.headSize,qty:pe.headQty});
-                (pe.nozzleList||[]).forEach(function(r){matItems.push({desc:'Nozzle '+(r[0]||''),spec:r[2]||'',size:r[1]||'',qty:r[3]||''});});
-                (pe.flangeList||[]).forEach(function(r){matItems.push({desc:'Flange '+(r[0]||''),spec:r[2]||'',size:r[1]||'',qty:r[3]||''});});
-                if(pe.saddleSpec)matItems.push({desc:'Saddle/Leg '+(pe.saddleName||''),spec:pe.saddleSpec,size:'',qty:pe.saddleQty});
-                if(pe.otherSpec)matItems.push({desc:'Other '+(pe.otherName||''),spec:pe.otherSpec,size:'',qty:pe.otherQty});
-                (pe.otherList||[]).forEach(function(r){matItems.push({desc:'Other '+(r[0]||''),spec:r[1]||'',size:'',qty:r[2]||''});});
+
+            // Get items from quotation/PO
+            var qtItems = job.items || [];
+            if(!qtItems.length && job.quotationId) {
+                var qt = DB.getById('quotations', job.quotationId, 'id');
+                if(qt && qt.items) qtItems = qt.items;
             }
-            if(so.materials&&so.materials.length){
-                so.materials.forEach(function(m){matItems.push({desc:m.desc||m.name||'',spec:m.grade||m.spec||'',size:m.size||'',qty:m.qty||''});});
+            if(!qtItems.length && job.poId) {
+                var po = DB.getById('clientPOs', job.poId, 'id');
+                if(po && po.items) qtItems = po.items;
             }
-            if(so.type==='repair'&&ri.equipName){
-                if(so.materials&&so.materials.length)so.materials.forEach(function(m){matItems.push({desc:'Repair: '+(m.desc||''),spec:m.grade||'',size:'',qty:m.qty||''});});
-            }
-            if(!matItems.length){showToast('No material items found in Work Order','error');return;}
+
+            if(!qtItems.length) return showToast('No material items found in Work Order','error');
+            if(!confirm('Approve all materials from '+job.id+' for Purchase Requisition?'))return;
+
+            // Create Purchase Requisition from quotation items
+            var matItems = qtItems.map(function(item) {
+                return {desc: item.description || '', spec: '', size: '', qty: item.qty || 0};
+            });
             var prId=DB.genId('purchaseRequisitions');
-            var pr={id:prId,woRef:job.id,sourceWoRef:so.id,custName:so.custName||job.custName||job.client||'',productName:so.productName||job.productName||job.equipment||'',items:matItems,status:'Approved',approvedBy:'Design Dept',approvedAt:new Date().toISOString(),createdAt:new Date().toISOString()};
+            var pr={id:prId,woRef:job.id,custName:job.client||'',productName:job.title||job.productName||job.equipment||'',items:matItems,status:'Approved',approvedBy:'Design Dept',approvedAt:new Date().toISOString(),createdAt:new Date().toISOString()};
             saveWithOwner('purchaseRequisitions',pr);
             // Update WO
             job.prRef=prId;
