@@ -1112,6 +1112,7 @@ console.log('🤖 AI Assistant Ready — Click robot to open');
                 if (user) {
                     document.getElementById('loginScreen').style.display = 'none';
                     document.getElementById('appContainer').style.display = 'flex';
+                    document.getElementById('appContainer').classList.add('show');
                     
                     // UPDATE UI WITH LOGGED-IN USER
                     updateUserUI(user);
