@@ -582,15 +582,13 @@ console.log('🤖 AI Assistant Ready — Click robot to open');
             }
 
             async loginViaServer(username, password) {
-                var result = await this._fetchApi('/api/login', {
-                    method: 'POST',
-                    body: JSON.stringify({ username: username, password: password })
-                });
-                if (result && result.token) {
-                    this.setToken(result.token);
-                    // Sync full DB after login
-                    await this.init();
-                    return result.user;
+                // Skip server - use local authentication
+                var user = this.authenticate(username, password);
+                if (user) {
+                    return {
+                        token: 'local-token',
+                        user: { id: user.id, username: user.username, name: user.name, role: user.role, avatar: user.avatar || 'AD' }
+                    };
                 }
                 return null;
             }
@@ -7240,6 +7238,29 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
         // ========================================================================
         //  SALES & BILLING FUNCTIONS
         // ========================================================================
+
+        function refreshAll() {
+            renderDashboardStats();
+            renderKanbanBoard();
+            renderJobsTable();
+            renderMarWorkOrders();
+            renderQualityStats();
+            renderInspections();
+            renderMethodStatements();
+            renderInventory();
+            renderAssets();
+            renderFabStats();
+            renderFabOrders();
+            renderDesignReviews();
+            renderCustomers();
+            renderEquipment();
+            renderPurchasing();
+            renderSales();
+            renderAccounting();
+            renderDocuments();
+            renderCosting();
+            updateHeaderStats();
+        }
 
         function renderDesignReviews() {
             // Design reviews now work on work orders directly
