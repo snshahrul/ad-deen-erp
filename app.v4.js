@@ -4074,94 +4074,56 @@ window.addEventListener('DOMContentLoaded', function() {
             document.getElementById('marOvTesting').value = job.testingRequirement || '';
             document.getElementById('marOvDoshReg').value = job.marDoshReg || '';
 
-            // Show ALL data from linked Sales Order
+            // Show quotation items and linked PO data
             const soMatEl = document.getElementById('soMatContent');
             const soMatToggle = document.getElementById('toggleSoMatBtn');
-            const soLinked = (job.salesId || job.woRef) ? DB.getById('salesOrders', job.salesId || job.woRef) : null;
-            if (soLinked) {
-                const so = soLinked;
-                const pe = so.peMaterials || {};
-                const ri = so.repairInfo || {};
-                const html = [];
+            const html = [];
+
+            // Get linked quotation
+            var qt = job.quotationId ? DB.getById('quotations', job.quotationId, 'id') : null;
+            var po = job.poId ? DB.getById('clientPOs', job.poId, 'id') : null;
+
+            if (qt || po || (job.items && job.items.length)) {
                 // Customer & Product info
                 html.push('<div style="margin-bottom:10px;padding:8px;background:#f0f4ff;border-radius:4px;">');
-                html.push('<p style="margin:0;"><b>WO Reference:</b> ' + so.id + ' &nbsp;|&nbsp; <b>Customer:</b> ' + (so.custName||'—') + ' &nbsp;|&nbsp; <b>Contact:</b> ' + (so.contact||'—') + ' &nbsp;|&nbsp; <b>Email:</b> ' + (so.email||'—') + '</p>');
-                html.push('<p style="margin:2px 0 0;"><b>Product:</b> ' + (so.productName||'—') + ' &nbsp;|&nbsp; <b>Order Type:</b> ' + (so.type||'—') + ' &nbsp;|&nbsp; <b>Equipment:</b> ' + (so.equipType||'—') + ' &nbsp;|&nbsp; <b>Budget:</b> RM ' + (so.budget||'0') + '</p>');
+                html.push('<p style="margin:0;"><b>WO:</b> ' + job.id + ' &nbsp;|&nbsp; <b>Client:</b> ' + (job.client||'—') + ' &nbsp;|&nbsp; <b>Contact:</b> ' + (job.contact||'—') + '</p>');
+                html.push('<p style="margin:2px 0 0;"><b>Product:</b> ' + (job.title||job.productName||'—') + ' &nbsp;|&nbsp; <b>PO#:</b> ' + (job.clientPONumber||'—') + ' &nbsp;|&nbsp; <b>Amount:</b> RM ' + (job.amount||0).toLocaleString() + '</p>');
+                if (qt) html.push('<p style="margin:2px 0 0;"><b>Quotation:</b> ' + qt.id + ' &nbsp;|&nbsp; <b>Contact:</b> ' + (qt.contact||'—') + ' &nbsp;|&nbsp; <b>Email:</b> ' + (qt.email||'—') + ' &nbsp;|&nbsp; <b>Phone:</b> ' + (qt.phone||'—') + '</p>');
                 html.push('</div>');
-                // Pressure Equipment
-                if (so.equipType === 'Pressure Equipment' || (so.equipType||'').includes('Pressure')) {
-                    if (pe.designCheck || pe.fabCheck) {
-                        html.push('<p><b>Checklist:</b> Design Drawing: ' + (pe.designCheck?'✅':'❌') + ' &nbsp;|&nbsp; Shop Fab Drawing: ' + (pe.fabCheck?'✅':'❌') + '</p>');
+
+                // Items from quotation/PO
+                var items = job.items || (po && po.items) || (qt && qt.items) || [];
+                if (items.length) {
+                    html.push('<div style="margin-bottom:10px;padding:8px;background:#f0fdf4;border-radius:4px;">');
+                    html.push('<p style="margin:0 0 6px;font-weight:700;font-size:13px;">📋 Items from Quotation</p>');
+                    html.push('<table style="width:100%;font-size:12px;border-collapse:collapse;">');
+                    html.push('<tr style="background:#e2e8f0;"><th style="padding:4px 6px;text-align:left;">#</th><th style="padding:4px 6px;text-align:left;">Description</th><th style="padding:4px 6px;text-align:right;">Qty</th><th style="padding:4px 6px;text-align:right;">Unit Price</th><th style="padding:4px 6px;text-align:right;">Total</th></tr>');
+                    items.forEach(function(item, idx) {
+                        var lineTotal = (item.qty || 0) * (item.unitPrice || 0);
+                        html.push('<tr><td style="padding:4px 6px;border-top:1px solid #e2e8f0;">' + (idx + 1) + '</td><td style="padding:4px 6px;border-top:1px solid #e2e8f0;">' + escHtml(item.description || '') + '</td><td style="padding:4px 6px;border-top:1px solid #e2e8f0;text-align:right;">' + (item.qty || 0) + '</td><td style="padding:4px 6px;border-top:1px solid #e2e8f0;text-align:right;">RM ' + (item.unitPrice || 0).toLocaleString(undefined, {minimumFractionDigits: 2}) + '</td><td style="padding:4px 6px;border-top:1px solid #e2e8f0;text-align:right;font-weight:600;">RM ' + lineTotal.toLocaleString(undefined, {minimumFractionDigits: 2}) + '</td></tr>');
+                    });
+                    html.push('</table>');
+
+                    // Totals
+                    if (qt) {
+                        html.push('<div style="margin-top:8px;padding-top:6px;border-top:1px solid #e2e8f0;display:grid;grid-template-columns:1fr auto;gap:2px 16px;font-size:12px;">');
+                        html.push('<div><b>Subtotal:</b></div><div style="text-align:right;">RM ' + (qt.subtotal || 0).toLocaleString() + '</div>');
+                        if (qt.taxPercent) html.push('<div><b>Tax (' + qt.taxPercent + '%):</b></div><div style="text-align:right;">RM ' + (qt.taxAmount || 0).toLocaleString() + '</div>');
+                        html.push('<div style="font-weight:700;font-size:13px;color:#059669;"><b>Grand Total:</b></div><div style="text-align:right;font-weight:700;font-size:13px;color:#059669;">RM ' + (qt.total || 0).toLocaleString() + '</div>');
+                        html.push('</div>');
                     }
-                    if (pe.designCode || pe.designPressure || pe.designTemp) {
-                        if (pe.designCode) html.push('<p><b>Design Code:</b> ' + pe.designCode + '</p>');
-                        html.push('<p><b>Design Pressure:</b> ' + (pe.designPressure||'—') + ' ' + (pe.designPressureUnit||'') + ' &nbsp;|&nbsp; <b>Design Temperature:</b> ' + (pe.designTemp||'—') + ' °C</p>');
-                    }
-                    if (pe.shellSpec || pe.shellSize) {
-                        html.push('<p><b>Shell:</b> Size: ' + (pe.shellSize||'—') + ' &nbsp;|&nbsp; Spec: ' + pe.shellSpec + ' &nbsp;|&nbsp; Qty: ' + (pe.shellQty||'—') + '</p>');
-                    }
-                    if (pe.headSpec || pe.headSize) {
-                        html.push('<p><b>Head:</b> Size: ' + (pe.headSize||'—') + ' &nbsp;|&nbsp; Spec: ' + pe.headSpec + ' &nbsp;|&nbsp; Type: ' + (pe.headType||'—') + ' &nbsp;|&nbsp; Qty: ' + (pe.headQty||'—') + '</p>');
-                    }
-                    // Nozzle main + dynamic rows
-                    if ((pe.nozzleList && pe.nozzleList.length) || pe.shellSpec || pe.headSpec) {
-                        html.push('<p><b>Nozzles:</b></p><ul style="margin:2px 0 6px 18px;">');
-                        (pe.nozzleList||[]).forEach(function(r){ html.push('<li>' + ((r[0]||'')+' '+(r[1]||'')) + ' — ' + (r[2]||'—') + ' × ' + (r[3]||'') + '</li>'); });
-                        if (!(pe.nozzleList && pe.nozzleList.length)) html.push('<li style="color:#888;">No nozzles specified</li>');
-                        html.push('</ul>');
-                    }
-                    // Flange main + dynamic rows
-                    if ((pe.flangeList && pe.flangeList.length) || pe.shellSpec || pe.headSpec) {
-                        html.push('<p><b>Flanges:</b></p><ul style="margin:2px 0 6px 18px;">');
-                        (pe.flangeList||[]).forEach(function(r){ html.push('<li>' + ((r[0]||'')+' '+(r[1]||'')) + ' — ' + (r[2]||'—') + ' × ' + (r[3]||'') + '</li>'); });
-                        if (!(pe.flangeList && pe.flangeList.length)) html.push('<li style="color:#888;">No flanges specified</li>');
-                        html.push('</ul>');
-                    }
-                    if (pe.saddleSpec || pe.saddleName) {
-                        html.push('<p><b>Saddle/Leg:</b> ' + (pe.saddleName||'—') + ' — ' + pe.saddleSpec + ' × ' + (pe.saddleQty||'—') + '</p>');
-                    }
-                    if (pe.otherSpec || pe.otherName || (pe.otherList && pe.otherList.length)) {
-                        html.push('<p><b>Other:</b></p><ul style="margin:2px 0 6px 18px;">');
-                        if (pe.otherSpec || pe.otherName) html.push('<li>' + (pe.otherName||'—') + ' — ' + (pe.otherSpec||'—') + ' × ' + (pe.otherQty||'—') + '</li>');
-                        (pe.otherList||[]).forEach(function(r){ html.push('<li>' + (r[0]||'—') + ' — ' + (r[1]||'—') + ' × ' + (r[2]||'') + '</li>'); });
-                        html.push('</ul>');
-                    }
-                    if (pe.misc) html.push('<p><b>Miscellaneous:</b> ' + pe.misc + '</p>');
+                    html.push('</div>');
                 }
-                // Non-Pressure Equipment
-                if (so.equipType === 'Non-Pressure' || so.type === 'fabrication' && (so.equipType||'').includes('Non')) {
-                    if (so.materials && so.materials.length) {
-                        html.push('<p><b>Materials:</b></p><ul style="margin:2px 0 6px 18px;">');
-                        so.materials.forEach(function(m){ html.push('<li>' + (m.desc||'—') + (m.grade?' ('+m.grade+')':'') + ' × ' + (m.qty||'') + ' ' + (m.unit||'') + '</li>'); });
-                        html.push('</ul>');
-                    }
+
+                // Notes/terms from quotation
+                if (qt && qt.notes) {
+                    html.push('<div style="margin-bottom:10px;padding:8px;background:#fffbeb;border-radius:4px;"><p style="margin:0 0 4px;font-weight:600;font-size:12px;">📝 Notes / Terms</p><p style="margin:0;font-size:12px;">' + escHtml(qt.notes) + '</p></div>');
                 }
-                // Repair info
-                if (so.type === 'repair' && ri.equipName) {
-                    html.push('<p><b>Repair — Equipment:</b> ' + ri.equipName + '</p>');
-                    html.push('<p><b>Reg No:</b> ' + (ri.regNo||'—') + ' &nbsp;|&nbsp; <b>Serial:</b> ' + (ri.serial||'—') + ' &nbsp;|&nbsp; <b>Year:</b> ' + (ri.yearMfg||'—') + '</p>');
-                    html.push('<p><b>Design Pressure:</b> ' + (ri.designP||'—') + ' bar &nbsp;|&nbsp; <b>Design Temp:</b> ' + (ri.designT||'—') + ' °C</p>');
-                    html.push('<p><b>Scope:</b> ' + (ri.scope||'—') + '</p>');
-                    if (ri.tests) {
-                        var tList = Object.keys(ri.tests).filter(function(k){return ri.tests[k];}).map(function(k){return k.charAt(0).toUpperCase()+k.slice(1);});
-                        if (tList.length) html.push('<p><b>Tests:</b> ' + tList.join(', ') + '</p>');
-                    }
-                    if (so.materials && so.materials.length) {
-                        html.push('<p><b>Repair Materials:</b></p><ul style="margin:2px 0 6px 18px;">');
-                        so.materials.forEach(function(m){ html.push('<li>' + (m.desc||'—') + ' × ' + (m.qty||'') + '</li>'); });
-                        html.push('</ul>');
-                    }
-                }
-                // Installation & handover
-                if (so.installDuration || so.installDate || so.handoverDuration || so.handoverDate) {
-                    html.push('<p><b>Installation:</b> Duration: ' + (so.installDuration||'—') + ' &nbsp;|&nbsp; Due: ' + (so.installDate||'—') + '</p>');
-                    html.push('<p><b>Handover:</b> Duration: ' + (so.handoverDuration||'—') + ' &nbsp;|&nbsp; Due: ' + (so.handoverDate||'—') + '</p>');
-                }
-                if (so.projectCost) html.push('<p><b>Project Cost:</b> RM ' + so.projectCost + '</p>');
-                soMatEl.innerHTML = html.length ? html.join('') : '<span style="color:#888;">No data found in linked Work Order.</span>';
+
+                soMatEl.innerHTML = html.length ? html.join('') : '<span style="color:#888;">No linked data found.</span>';
                 soMatToggle.style.display = 'inline-flex';
             } else {
-                soMatEl.innerHTML = '<span style="color:#888;">Not linked to a Work Order.</span>';
+                soMatEl.innerHTML = '<span style="color:#888;">No linked quotation or PO data.</span>';
                 soMatToggle.style.display = 'none';
             }
             // Show material data by default if there's a linked SO
@@ -7423,18 +7385,115 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
         }
 
         function renderDesignReviews() {
-            // Design reviews now work on work orders directly
-            var tbody = document.getElementById('designReviewsTable');
-            if (tbody) {
-                var wos = DB.get('workOrders').filter(function(wo) { return wo.status === 'New' || wo.designStatus === 'Under Review'; });
-                if (wos.length) {
-                    tbody.innerHTML = wos.map(function(wo) {
-                        return '<tr><td>' + escHtml(wo.id) + '</td><td>' + escHtml(wo.client || '—') + '</td><td>' + escHtml(wo.title || wo.productName || '—') + '</td><td>' + escHtml(wo.status || 'New') + '</td></tr>';
+            var tbody = document.getElementById('designTable');
+            if (!tbody) return;
+            var typeFilter = document.querySelector('input[name="designTypeFilter"]:checked')?.value || 'all';
+            var statusFilter = document.getElementById('designStatusFilter')?.value || 'all';
+            var searchVal = (document.getElementById('designSearch')?.value || '').toLowerCase();
+
+            var wos = DB.get('workOrders').filter(function(wo) {
+                if (wo.status !== 'New' && wo.designStatus !== 'Under Review' && wo.status !== 'Design Review' && wo.status !== 'Submitted') return false;
+                if (typeFilter !== 'all') {
+                    var woType = wo.type || wo.workCategory || '';
+                    if (typeFilter === 'repair' && !woType.includes('repair')) return false;
+                    if (typeFilter === 'fabrication' && woType.includes('repair')) return false;
+                }
+                if (statusFilter !== 'all' && (wo.designStatus || 'Pending') !== statusFilter) return false;
+                if (searchVal) {
+                    var haystack = ((wo.id || '') + (wo.client || '') + (wo.title || '') + (wo.productName || '') + (wo.description || '')).toLowerCase();
+                    if (haystack.indexOf(searchVal) === -1) return false;
+                }
+                return true;
+            });
+
+            if (!wos.length) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-muted);">No pending design reviews</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = wos.sort(function(a, b) { return (b.createdAt || '').localeCompare(a.createdAt || ''); }).map(function(wo) {
+                var ds = wo.designStatus || 'Pending';
+                var statusBadge = ds === 'Approved' ? 'badge-success' : ds === 'Submitted' ? 'badge-warning' : ds === 'Rejected' ? 'badge-danger' : 'badge-pending';
+                var catLabel = wo.type === 'repair' ? '🔧 Repair' : wo.branch === 'fab' ? '🆕 PE/New Fab' : wo.branch === 'nonpressure' ? '🟢 NPE' : wo.branch === 'mar' ? '🔧 M&R' : '—';
+                var qtRef = wo.quotationId || '—';
+                return '<tr>' +
+                    '<td><strong>' + escHtml(wo.id) + '</strong></td>' +
+                    '<td>' + escHtml(wo.client || '—') + '<br><small style="color:var(--text-muted);">' + escHtml(wo.contact || '') + '</small></td>' +
+                    '<td>' + escHtml(wo.title || wo.productName || '—') + '<br><small style="color:var(--text-muted);">' + escHtml((wo.description || '').substring(0, 50)) + '</small></td>' +
+                    '<td>' + escHtml(qtRef) + '</td>' +
+                    '<td><strong>RM ' + (wo.amount || 0).toLocaleString() + '</strong></td>' +
+                    '<td>' + catLabel + '</td>' +
+                    '<td><span class="badge ' + statusBadge + '">' + escHtml(ds) + '</span></td>' +
+                    '<td>' +
+                        '<button class="btn btn-xs btn-primary" onclick="openDesignDetailForWO(\'' + wo.id + '\')">📋 Review</button> ' +
+                        (ds !== 'Approved' ? '<button class="btn btn-xs btn-success" onclick="issueWOToSection(\'' + wo.id + '\')">📤 Issue WO</button>' : '') +
+                    '</td>' +
+                '</tr>';
+            }).join('');
+        }
+
+        function openDesignDetailForWO(woId) {
+            _currentMarWoId = woId;
+            openMarDetail(woId);
+        }
+
+        function issueWOToSection(woId) {
+            var wo = DB.getById('workOrders', woId);
+            if (!wo) return showToast('Work order not found', 'error');
+            var modal = document.getElementById('issueWOModal');
+            if (!modal) return;
+
+            document.getElementById('issueWOId').value = woId;
+            document.getElementById('issueWOClient').textContent = wo.client || '—';
+            document.getElementById('issueWOProduct').textContent = wo.title || wo.productName || '—';
+            document.getElementById('issueWOAmount').textContent = 'RM ' + (wo.amount || 0).toLocaleString();
+
+            // Show items from quotation
+            var itemsBody = document.getElementById('issueWOItemsBody');
+            if (itemsBody) {
+                var items = wo.items || [];
+                if (items.length) {
+                    itemsBody.innerHTML = items.map(function(item, idx) {
+                        var lineTotal = (item.qty || 0) * (item.unitPrice || 0);
+                        return '<tr><td>' + (idx + 1) + '</td><td>' + escHtml(item.description || '') + '</td><td>' + (item.qty || 0) + '</td><td>RM ' + (item.unitPrice || 0).toLocaleString(undefined, {minimumFractionDigits: 2}) + '</td><td style="font-weight:600;">RM ' + lineTotal.toLocaleString(undefined, {minimumFractionDigits: 2}) + '</td></tr>';
                     }).join('');
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text-muted);">No pending design reviews</td></tr>';
+                    itemsBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">No items</td></tr>';
                 }
             }
+
+            modal.style.display = 'flex';
+            modal.classList.add('active');
+        }
+
+        function confirmIssueWO() {
+            var woId = document.getElementById('issueWOId').value;
+            var section = document.querySelector('input[name="issueWOSection"]:checked');
+            if (!section) { showToast('Please select a section', 'error'); return; }
+
+            var wo = DB.getById('workOrders', woId);
+            if (!wo) return showToast('Work order not found', 'error');
+
+            var sectionVal = section.value;
+            var branchMap = { 'repair': 'mar', 'pressure': 'fab', 'newfab': 'fab', 'nonpressure': 'nonpressure' };
+            var branch = branchMap[sectionVal] || 'fab';
+            var typeMap = { 'repair': 'repair', 'pressure': 'fabrication', 'newfab': 'fabrication', 'nonpressure': 'fabrication' };
+            var type = typeMap[sectionVal] || 'fabrication';
+
+            wo.branch = branch;
+            wo.type = type;
+            wo.designStatus = 'Approved';
+            wo.status = 'In Progress';
+            wo.issuedSection = sectionVal;
+            wo.issuedAt = new Date().toISOString();
+            wo.issuedBy = Auth.getUser()?.username || '';
+
+            DB.update('workOrders', woId, wo);
+
+            closeModal('issueWOModal');
+            showToast('✅ Work Order ' + woId + ' issued to ' + section.parentElement.querySelector('span').textContent.trim(), 'success');
+            renderDesignReviews();
+            renderJobsTable();
         }
 
         function renderSales() {
