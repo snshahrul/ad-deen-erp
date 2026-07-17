@@ -250,7 +250,7 @@ function getErpSummary() {
     const lowStock = inventory.filter(i => i.status === 'Low Stock');
     const pendingInsp = inspections.filter(i => !i.result.includes('Pass'));
 
-    return `Active Work Orders: ${activeWO.length} | Low Stock: ${lowStock.length} | Pending Inspections: ${pendingInsp.length} | Customers: ${customers.length} | Sales Orders: ${salesOrders.length} | Fab Orders: ${fabOrders.length}`;
+    return `Active Work Orders: ${activeWO.length} | Low Stock: ${lowStock.length} | Pending Inspections: ${pendingInsp.length} | Customers: ${customers.length} | Fab Orders: ${fabOrders.length}`;
 }
 
 // ===== LOCAL AI =====
@@ -262,7 +262,6 @@ function generateAiResponse(msg) {
         inspections: DB.get('inspections'),
         customers: DB.get('customers'),
         fabOrders: DB.get('fabOrders'),
-        salesOrders: DB.get('salesOrders'),
     };
 
     if (q.includes('work order') || q.includes('active job')) {
@@ -278,8 +277,8 @@ function generateAiResponse(msg) {
         return `✅ ${data.inspections.length} inspections | ${passed} passed (${data.inspections.length?Math.round(passed/data.inspections.length*100):0}%)`;
     }
     if (q.includes('revenue') || q.includes('sales')) {
-        const rev = data.salesOrders.filter(s=>s.status==='Completed').reduce((s,o)=>s+(o.amount||0),0);
-        return `💰 Revenue: <strong>RM ${rev.toLocaleString()}</strong> | ${data.salesOrders.length} orders`;
+        const rev = data.workOrders.filter(s=>s.status==='Completed').reduce((s,o)=>s+(o.amount||0),0);
+        return `💰 Revenue: <strong>RM ${rev.toLocaleString()}</strong> | ${data.workOrders.length} work orders`;
     }
     if (q.includes('fab')) {
         const active = data.fabOrders.filter(f=>f.status!=='Completed'&&f.status!=='Closed');
@@ -1625,7 +1624,6 @@ window.addEventListener('DOMContentLoaded', function() {
             const sc = DB.get('serviceCalls');
             const docs = DB.get('documents');
             const assets = DB.get('assets');
-            const sales = DB.get('salesOrders');
             const invArr = inv;
 
             // Job Overview
@@ -1666,9 +1664,9 @@ window.addEventListener('DOMContentLoaded', function() {
             if (el('rptMatSummary')) el('rptMatSummary').innerHTML = `${inv.length} items · ${linkedToJob} linked to jobs`;
 
             // Financial Summary
-            const totalSO = sales.reduce((s, so) => s + (so.amount || 0), 0);
-            const soCount = sales.length;
-            if (el('rptFinSummary')) el('rptFinSummary').innerHTML = `${soCount} sales orders · Total: RM ${totalSO.toLocaleString()}`;
+            const totalWO = wo.reduce((s, o) => s + (o.amount || 0), 0);
+            const woCount = wo.length;
+            if (el('rptFinSummary')) el('rptFinSummary').innerHTML = `${woCount} work orders · Total: RM ${totalWO.toLocaleString()}`;
 
             // Maintenance / Asset
             const dueSoon = assets.filter(a => (a.status || '') === 'Due Soon').length;
@@ -2757,7 +2755,7 @@ window.addEventListener('DOMContentLoaded', function() {
 
             grid.innerHTML = docs.map(function(d) {
                 const typeClass = getDocTypeClass(d.type);
-                const linkedLabel = d.linkedRef ? (d.linkedType === 'workOrder' ? '[WO] ' + d.linkedRef : d.linkedType === 'fabOrder' ? '[FO] ' + d.linkedRef : d.linkedType === 'customer' ? '[C] ' + d.linkedRef : d.linkedType === 'salesOrder' ? '[SO] ' + d.linkedRef : d.linkedRef) : '';
+                const linkedLabel = d.linkedRef ? (d.linkedType === 'workOrder' ? '[WO] ' + d.linkedRef : d.linkedType === 'fabOrder' ? '[FO] ' + d.linkedRef : d.linkedType === 'customer' ? '[C] ' + d.linkedRef : d.linkedRef) : '';
                 const sizeLabel = d.fileSize ? formatFileSize(d.fileSize) : '';
                 const statusBadge = d.status ? '<span class="badge badge-' + d.status.toLowerCase() + '">' + d.status + '</span>' : '';
                 const dateLabel = d.createdAt ? new Date(d.createdAt).toLocaleDateString() : '';
@@ -2801,8 +2799,7 @@ window.addEventListener('DOMContentLoaded', function() {
             var groups = [
                 { label: 'Work Orders', key: 'workOrder', items: DB.get('workOrders') },
                 { label: 'Fab Orders', key: 'fabOrder', items: DB.get('fabOrders') },
-                { label: 'Customers', key: 'customer', items: DB.get('customers') },
-                { label: 'Sales Orders', key: 'salesOrder', items: DB.get('salesOrders') }
+                { label: 'Customers', key: 'customer', items: DB.get('customers') }
             ];
             groups.forEach(function(group) {
                 if (group.items.length) {
@@ -2967,7 +2964,7 @@ window.addEventListener('DOMContentLoaded', function() {
             document.getElementById('docViewerNotes').textContent = d.notes || '--';
 
             if (d.linkedRef) {
-                var linkLabels = { workOrder: 'Work Order', fabOrder: 'Fab Order', customer: 'Customer', salesOrder: 'Sales Order' };
+                var linkLabels = { workOrder: 'Work Order', fabOrder: 'Fab Order', customer: 'Customer' };
                 document.getElementById('docViewerLinked').innerHTML = '<span style="cursor:pointer;color:var(--info);text-decoration:underline;" onclick="navigateToRef(\'' + d.linkedType + '\',\'' + d.linkedRef + '\')">' + (linkLabels[d.linkedType] || d.linkedType) + ': ' + d.linkedRef + '</span>';
             } else {
                 document.getElementById('docViewerLinked').innerHTML = '<span style="color:var(--text-muted);">--</span>';
@@ -3039,9 +3036,6 @@ window.addEventListener('DOMContentLoaded', function() {
             } else if (type === 'customer') {
                 var el = document.querySelector('[data-section="customers"]');
                 if (el) navigateTo('customers', el);
-            } else if (type === 'salesOrder') {
-                var el = document.querySelector('[data-section="sales"]');
-                if (el) navigateTo('sales', el);
             }
         }
 
@@ -4091,7 +4085,7 @@ window.addEventListener('DOMContentLoaded', function() {
                 const html = [];
                 // Customer & Product info
                 html.push('<div style="margin-bottom:10px;padding:8px;background:#f0f4ff;border-radius:4px;">');
-                html.push('<p style="margin:0;"><b>SO Reference:</b> ' + so.id + ' &nbsp;|&nbsp; <b>Customer:</b> ' + (so.custName||'—') + ' &nbsp;|&nbsp; <b>Contact:</b> ' + (so.contact||'—') + ' &nbsp;|&nbsp; <b>Email:</b> ' + (so.email||'—') + '</p>');
+                html.push('<p style="margin:0;"><b>WO Reference:</b> ' + so.id + ' &nbsp;|&nbsp; <b>Customer:</b> ' + (so.custName||'—') + ' &nbsp;|&nbsp; <b>Contact:</b> ' + (so.contact||'—') + ' &nbsp;|&nbsp; <b>Email:</b> ' + (so.email||'—') + '</p>');
                 html.push('<p style="margin:2px 0 0;"><b>Product:</b> ' + (so.productName||'—') + ' &nbsp;|&nbsp; <b>Order Type:</b> ' + (so.type||'—') + ' &nbsp;|&nbsp; <b>Equipment:</b> ' + (so.equipType||'—') + ' &nbsp;|&nbsp; <b>Budget:</b> RM ' + (so.budget||'0') + '</p>');
                 html.push('</div>');
                 // Pressure Equipment
@@ -4164,10 +4158,10 @@ window.addEventListener('DOMContentLoaded', function() {
                     html.push('<p><b>Handover:</b> Duration: ' + (so.handoverDuration||'—') + ' &nbsp;|&nbsp; Due: ' + (so.handoverDate||'—') + '</p>');
                 }
                 if (so.projectCost) html.push('<p><b>Project Cost:</b> RM ' + so.projectCost + '</p>');
-                soMatEl.innerHTML = html.length ? html.join('') : '<span style="color:#888;">No data found in linked Sales Order.</span>';
+                soMatEl.innerHTML = html.length ? html.join('') : '<span style="color:#888;">No data found in linked Work Order.</span>';
                 soMatToggle.style.display = 'inline-flex';
             } else {
-                soMatEl.innerHTML = '<span style="color:#888;">Not linked to a Sales Order.</span>';
+                soMatEl.innerHTML = '<span style="color:#888;">Not linked to a Work Order.</span>';
                 soMatToggle.style.display = 'none';
             }
             // Show material data by default if there's a linked SO
@@ -4288,7 +4282,7 @@ window.addEventListener('DOMContentLoaded', function() {
                     }
                 });
                 if(!matSummary.length){
-                    // Try from linked SO peMaterials
+                    // Try from linked Work Order peMaterials
                     var so=job.salesId?DB.getById('salesOrders',job.salesId):job.woRef?DB.getById('salesOrders',job.woRef):null;
                     if(so&&so.peMaterials){
                         var pe=so.peMaterials;
@@ -4345,7 +4339,7 @@ window.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                 }
-                // PO ref from linked sales order
+                // PO ref from linked Work Order
                 var soPO=job.salesId?DB.getById('salesOrders',job.salesId):job.woRef?DB.getById('salesOrders',job.woRef):null;
                 if(soPO&&soPO.clientPO){
                     var poEl=document.getElementById('wo_fabPO');
@@ -4837,9 +4831,9 @@ window.addEventListener('DOMContentLoaded', function() {
             var job=DB.getById('workOrders',_currentMarWoId);
             if(!job)return showToast('Work order not found','error');
             var so=job.salesId?DB.getById('salesOrders',job.salesId):job.woRef?DB.getById('salesOrders',job.woRef):null;
-            if(!so)return showToast('No linked Sales Order found','error');
+            if(!so)return showToast('No linked Work Order found','error');
             if(!confirm('Approve all materials from '+so.id+' for Purchase Requisition?'))return;
-            // Create Purchase Requisition from SO materials
+            // Create Purchase Requisition from Work Order materials
             var pe=so.peMaterials||{};
             var ri=so.repairInfo||{};
             var matItems=[];
@@ -4858,7 +4852,7 @@ window.addEventListener('DOMContentLoaded', function() {
             if(so.type==='repair'&&ri.equipName){
                 if(so.materials&&so.materials.length)so.materials.forEach(function(m){matItems.push({desc:'Repair: '+(m.desc||''),spec:m.grade||'',size:'',qty:m.qty||''});});
             }
-            if(!matItems.length){showToast('No material items found in Sales Order','error');return;}
+            if(!matItems.length){showToast('No material items found in Work Order','error');return;}
             var prId=DB.genId('purchaseRequisitions');
             var pr={id:prId,woRef:job.id,salesRef:so.id,custName:so.custName||job.custName||job.client||'',productName:so.productName||job.productName||job.equipment||'',items:matItems,status:'Approved',approvedBy:'Design Dept',approvedAt:new Date().toISOString(),createdAt:new Date().toISOString()};
             saveWithOwner('purchaseRequisitions',pr);
@@ -5692,7 +5686,6 @@ window.addEventListener('DOMContentLoaded', function() {
             const sc = DB.get('serviceCalls');
             const docs = DB.get('documents');
             const assets = DB.get('assets');
-            const sales = DB.get('salesOrders');
             let msg = '';
 
             if (type === 'job-overview') {
@@ -5728,8 +5721,8 @@ window.addEventListener('DOMContentLoaded', function() {
                 const unlinked = inv.length - linked;
                 msg = '🧱 Material Usage Report\n\nTotal Items: ' + inv.length + '\nLinked to Jobs: ' + linked + '\nUnlinked: ' + unlinked;
             } else if (type === 'financial-summary') {
-                const totalSO = sales.reduce((s, so) => s + (so.amount || 0), 0);
-                msg = '💰 Financial Summary Report\n\nSales Orders: ' + sales.length + '\nTotal Value: RM ' + totalSO.toLocaleString();
+                const totalWO = wo.reduce((s, o) => s + (o.amount || 0), 0);
+                msg = '💰 Financial Summary Report\n\nWork Orders: ' + wo.length + '\nTotal Value: RM ' + totalWO.toLocaleString();
             } else if (type === 'maintenance-asset') {
                 const dueSoon = assets.filter(a => a.status === 'Due Soon').length;
                 const overdue = assets.filter(a => a.nextDue && new Date(a.nextDue) < new Date()).length;
@@ -7328,361 +7321,6 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
             try { renderInvoices(); } catch (e) { console.error('renderInvoices error:', e); }
         }
 
-function openDesignDetailSO(soId) {
-    var so = DB.getById('salesOrders', soId);
-    if (!so) return showToast('Sales order not found', 'error');
-    var pe = so.peMaterials || {};
-    var rep = so.repairInfo || {};
-    var isRepair = so.type === 'repair';
-    var isPE = so.equipType === 'pressure-equipment';
-    var ds = so.designStatus || 'Pending';
-    var statusColor = ds === 'Approved' ? '#059669' : ds === 'Rejected' ? '#dc2626' : ds === 'Submitted' ? '#0284c7' : '#d97706';
-    var statusLabel = ds === 'Approved' ? '✅ Approved' : ds === 'Rejected' ? '❌ Rejected' : ds === 'Submitted' ? '📤 Submitted' : '🔍 Under Review';
-    var typeLabel = isRepair ? '🔧 Repair' : '🆕 New Fabrication';
-    var equipLabel = isPE ? '🔴 Pressure Equipment' : '🟢 Non-Pressure';
-
-    var html = '';
-    html += '<div style="max-height:70vh;overflow-y:auto;padding:20px;">';
-
-    // Header card
-    html += '<div style="background:linear-gradient(135deg,#1e40af,#7c3aed);color:white;padding:16px;border-radius:8px;margin-bottom:16px;">';
-    html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
-    html += '<div><div style="font-size:18px;font-weight:700;">' + so.id + ' — ' + (so.productName || so.equipment || '—') + '</div>';
-    html += '<div style="font-size:13px;opacity:0.85;margin-top:4px;">' + typeLabel + ' | ' + equipLabel + ' | ' + (so.custName || so.customer || '—') + '</div></div>';
-    html += '<div style="text-align:right;"><span style="background:' + statusColor + ';padding:4px 12px;border-radius:12px;font-size:13px;font-weight:600;">' + statusLabel + '</span>';
-    html += '<div style="font-size:11px;opacity:0.7;margin-top:4px;">Submitted: ' + (so.designSubmittedDate || (so.createdAt ? so.createdAt.slice(0, 10) : '—')) + '</div></div>';
-    html += '</div></div>';
-
-    // Customer Info
-    html += '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px;">';
-    html += '<h4 style="margin:0 0 10px;font-size:13px;color:var(--primary);">👤 Customer Information</h4>';
-    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">';
-    html += '<div><strong>Client:</strong> ' + (so.custName || so.customer || '—') + '</div>';
-    html += '<div><strong>Contact:</strong> ' + (so.contact || '—') + '</div>';
-    html += '<div><strong>Email:</strong> ' + (so.email || '—') + '</div>';
-    html += '<div><strong>Budget:</strong> RM ' + (so.budget || so.amount || 0).toLocaleString() + '</div>';
-    html += '</div></div>';
-
-    if (isRepair) {
-        // ============ REPAIR DETAILS ============
-        html += '<div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:14px;margin-bottom:12px;">';
-        html += '<h4 style="margin:0 0 10px;font-size:13px;color:#dc2626;">🔧 Repair Equipment Details</h4>';
-        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">';
-        html += '<div><strong>Equipment Name:</strong> ' + (rep.equipName || so.productName || '—') + '</div>';
-        html += '<div><strong>Registration No:</strong> ' + (rep.regNo || '—') + '</div>';
-        html += '<div><strong>Serial No:</strong> ' + (rep.serial || '—') + '</div>';
-        html += '<div><strong>Year of Manufacture:</strong> ' + (rep.yearMfg || '—') + '</div>';
-        html += '<div><strong>Design Pressure:</strong> ' + (rep.designP || '—') + '</div>';
-        html += '<div><strong>Design Temperature:</strong> ' + (rep.designT || '—') + '</div>';
-        html += '</div></div>';
-
-        // Scope of Work
-        html += '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px;">';
-        html += '<h4 style="margin:0 0 10px;font-size:13px;color:var(--primary);">📋 Scope of Work</h4>';
-        html += '<div style="font-size:13px;line-height:1.6;">' + (rep.scope || '—').replace(/\n/g, '<br>') + '</div></div>';
-
-        // Testing Requirements
-        if (rep.tests) {
-            html += '<div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:14px;margin-bottom:12px;">';
-            html += '<h4 style="margin:0 0 10px;font-size:13px;color:#d97706;">🧪 Testing Requirements</h4>';
-            html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px;">';
-            var testNames = {hydro:'Hydrostatic Test',bubble:'Bubble Test',dpt:'DPT',mpi:'MPI',xray:'X-Ray/Radiography',visual:'Visual Inspection',ut:'UT'};
-            Object.keys(testNames).forEach(function(k) {
-                var checked = rep.tests[k];
-                html += '<div>' + (checked ? '✅' : '⬜') + ' ' + testNames[k] + '</div>';
-            });
-            html += '</div></div>';
-        }
-
-        // Repair Materials
-        if (so.materials && so.materials.length) {
-            html += '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px;">';
-            html += '<h4 style="margin:0 0 10px;font-size:13px;color:var(--primary);">🔩 Materials</h4>';
-            html += '<table style="width:100%;font-size:12px;border-collapse:collapse;">';
-            html += '<tr style="background:var(--bg-secondary);"><th style="padding:6px;text-align:left;">Description</th><th style="padding:6px;text-align:left;">Grade</th><th style="padding:6px;text-align:right;">Qty</th><th style="padding:6px;text-align:left;">Unit</th></tr>';
-            so.materials.forEach(function(m) {
-                html += '<tr><td style="padding:6px;border-top:1px solid var(--border);">' + (m.desc || m.description || '—') + '</td>';
-                html += '<td style="padding:6px;border-top:1px solid var(--border);">' + (m.grade || '—') + '</td>';
-                html += '<td style="padding:6px;border-top:1px solid var(--border);text-align:right;">' + (m.qty || 0) + '</td>';
-                html += '<td style="padding:6px;border-top:1px solid var(--border);">' + (m.unit || '—') + '</td></tr>';
-            });
-            html += '</table></div>';
-        }
-
-    } else {
-        // ============ FABRICATION DETAILS ============
-        if (isPE && Object.keys(pe).length) {
-            // Design Parameters
-            html += '<div style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:14px;margin-bottom:12px;">';
-            html += '<h4 style="margin:0 0 10px;font-size:13px;color:#2563eb;">📐 Design Parameters</h4>';
-            html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:13px;">';
-            html += '<div><strong>Design Code:</strong> ' + (pe.designCode || '—') + '</div>';
-            html += '<div><strong>Design Pressure:</strong> ' + (pe.designPressure || '—') + ' ' + (pe.designPressureUnit || 'Bar') + '</div>';
-            html += '<div><strong>Design Temperature:</strong> ' + (pe.designTemp || '—') + ' °C</div>';
-            html += '<div><strong>Equip Type:</strong> ' + equipLabel + '</div>';
-            html += '<div><strong>Design Drawing:</strong> ' + (pe.designCheck ? '✅' : '⬜') + '</div>';
-            html += '<div><strong>Shop Fab Drawing:</strong> ' + (pe.fabCheck ? '✅' : '⬜') + '</div>';
-            html += '</div></div>';
-
-            // Material List
-            html += '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px;">';
-            html += '<h4 style="margin:0 0 10px;font-size:13px;color:var(--primary);">🔩 Material List & Quantity</h4>';
-
-            // Shell
-            if (pe.shellSpec || pe.shellSize) {
-                html += '<div style="margin-bottom:8px;padding:8px;background:rgba(16,185,129,0.06);border-radius:6px;font-size:13px;">';
-                html += '<strong>Shell:</strong> ' + (pe.shellSize || '—') + ' | ' + (pe.shellSpec || '—') + ' | Qty: ' + (pe.shellQty || '—');
-                html += '</div>';
-            }
-            // Head
-            if (pe.headSpec || pe.headSize) {
-                html += '<div style="margin-bottom:8px;padding:8px;background:rgba(16,185,129,0.06);border-radius:6px;font-size:13px;">';
-                html += '<strong>Head:</strong> ' + (pe.headSize || '—') + ' | ' + (pe.headSpec || '—') + ' | Type: ' + (pe.headType || '—') + ' | Qty: ' + (pe.headQty || '—');
-                html += '</div>';
-            }
-            // Nozzles
-            if (pe.nozzleList && pe.nozzleList.length) {
-                html += '<div style="margin-bottom:8px;padding:8px;background:rgba(245,158,11,0.06);border-radius:6px;font-size:13px;">';
-                html += '<strong>Nozzles (' + pe.nozzleList.length + '):</strong><table style="width:100%;font-size:12px;margin-top:4px;border-collapse:collapse;">';
-                html += '<tr style="background:var(--bg-secondary);"><th style="padding:4px;text-align:left;">Name</th><th style="padding:4px;text-align:left;">Size</th><th style="padding:4px;text-align:left;">Spec</th><th style="padding:4px;text-align:right;">Qty</th></tr>';
-                pe.nozzleList.forEach(function(n) {
-                    html += '<tr><td style="padding:4px;border-top:1px solid var(--border);">' + (n[0] || '—') + '</td><td style="padding:4px;">' + (n[1] || '—') + '</td><td style="padding:4px;">' + (n[2] || '—') + '</td><td style="padding:4px;text-align:right;">' + (n[3] || '—') + '</td></tr>';
-                });
-                html += '</table></div>';
-            }
-            // Flanges
-            if (pe.flangeList && pe.flangeList.length) {
-                html += '<div style="margin-bottom:8px;padding:8px;background:rgba(168,85,247,0.06);border-radius:6px;font-size:13px;">';
-                html += '<strong>Flanges (' + pe.flangeList.length + '):</strong><table style="width:100%;font-size:12px;margin-top:4px;border-collapse:collapse;">';
-                html += '<tr style="background:var(--bg-secondary);"><th style="padding:4px;text-align:left;">Name</th><th style="padding:4px;text-align:left;">Size</th><th style="padding:4px;text-align:left;">Spec</th><th style="padding:4px;text-align:right;">Qty</th></tr>';
-                pe.flangeList.forEach(function(f) {
-                    html += '<tr><td style="padding:4px;border-top:1px solid var(--border);">' + (f[0] || '—') + '</td><td style="padding:4px;">' + (f[1] || '—') + '</td><td style="padding:4px;">' + (f[2] || '—') + '</td><td style="padding:4px;text-align:right;">' + (f[3] || '—') + '</td></tr>';
-                });
-                html += '</table></div>';
-            }
-            // Saddle/Leg
-            if (pe.saddleName || pe.saddleSpec) {
-                html += '<div style="margin-bottom:8px;padding:8px;background:rgba(234,179,8,0.06);border-radius:6px;font-size:13px;">';
-                html += '<strong>Saddle/Leg:</strong> ' + (pe.saddleName || '—') + ' | ' + (pe.saddleSpec || '—') + ' | Qty: ' + (pe.saddleQty || '—');
-                html += '</div>';
-            }
-            // Other
-            if (pe.otherList && pe.otherList.length) {
-                html += '<div style="margin-bottom:8px;padding:8px;background:var(--bg-secondary);border-radius:6px;font-size:13px;">';
-                html += '<strong>Other Materials (' + pe.otherList.length + '):</strong><table style="width:100%;font-size:12px;margin-top:4px;border-collapse:collapse;">';
-                html += '<tr style="background:var(--bg);"><th style="padding:4px;text-align:left;">Name</th><th style="padding:4px;text-align:left;">Spec</th><th style="padding:4px;text-align:right;">Qty</th></tr>';
-                pe.otherList.forEach(function(o) {
-                    html += '<tr><td style="padding:4px;border-top:1px solid var(--border);">' + (o[0] || '—') + '</td><td style="padding:4px;">' + (o[1] || '—') + '</td><td style="padding:4px;text-align:right;">' + (o[2] || '—') + '</td></tr>';
-                });
-                html += '</table></div>';
-            }
-            // Misc
-            if (pe.misc) {
-                html += '<div style="margin-top:8px;padding:8px;background:var(--bg-secondary);border-radius:6px;font-size:12px;line-height:1.6;"><strong>Miscellaneous Notes:</strong><br>' + pe.misc.replace(/\n/g, '<br>') + '</div>';
-            }
-            html += '</div>';
-
-        } else if (!isPE && so.materials && so.materials.length) {
-            // NP Materials
-            html += '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px;">';
-            html += '<h4 style="margin:0 0 10px;font-size:13px;color:var(--primary);">🔩 Non-Pressure Materials</h4>';
-            html += '<table style="width:100%;font-size:12px;border-collapse:collapse;">';
-            html += '<tr style="background:var(--bg-secondary);"><th style="padding:6px;text-align:left;">Description</th><th style="padding:6px;text-align:left;">Grade</th><th style="padding:6px;text-align:right;">Qty</th><th style="padding:6px;text-align:left;">Unit</th></tr>';
-            so.materials.forEach(function(m) {
-                html += '<tr><td style="padding:6px;border-top:1px solid var(--border);">' + (m.desc || m.description || '—') + '</td>';
-                html += '<td style="padding:6px;border-top:1px solid var(--border);">' + (m.grade || '—') + '</td>';
-                html += '<td style="padding:6px;border-top:1px solid var(--border);text-align:right;">' + (m.qty || 0) + '</td>';
-                html += '<td style="padding:6px;border-top:1px solid var(--border);">' + (m.unit || '—') + '</td></tr>';
-            });
-            html += '</table></div>';
-        } else {
-            html += '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px;">';
-            html += '<h4 style="margin:0 0 10px;font-size:13px;color:var(--primary);">🔩 Materials</h4>';
-            html += '<div style="font-size:13px;color:var(--text-secondary);">No material details recorded.</div></div>';
-        }
-    }
-
-    // Schedule & Cost (shared)
-    html += '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px;">';
-    html += '<h4 style="margin:0 0 10px;font-size:13px;color:var(--primary);">📅 Schedule & Cost</h4>';
-    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;">';
-    html += '<div><strong>Installation Duration:</strong> ' + (so.installDuration || '—') + '</div>';
-    html += '<div><strong>Installation Due Date:</strong> ' + (so.installDate || '—') + '</div>';
-    html += '<div><strong>Handover Duration:</strong> ' + (so.handoverDuration || '—') + '</div>';
-    html += '<div><strong>Handover Due Date:</strong> ' + (so.handoverDate || '—') + '</div>';
-    html += '<div style="grid-column:span 2;"><strong>Project Cost:</strong> RM ' + (so.projectCost || 0).toLocaleString() + '</div>';
-    html += '</div>';
-    // Parse cost breakdown from misc notes
-    if (pe.misc) {
-        var lines = pe.misc.split('\n');
-        var costLines = lines.filter(function(l) { return l.match(/(Fabrication Cost|Consumable|Manpower|Drawing|Inspection|Testing|Others|TOTAL ESTIMATED|Design Code|Testing Type)/i); });
-        if (costLines.length) {
-            html += '<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">';
-            html += '<div style="font-size:13px;font-weight:600;margin-bottom:8px;">💰 Cost Breakdown (from PV Calculator)</div>';
-            html += '<div style="display:grid;grid-template-columns:1fr auto;gap:4px 16px;font-size:12px;">';
-            costLines.forEach(function(l) {
-                var parts = l.split(':');
-                if (parts.length >= 2) {
-                    var label = parts[0].trim();
-                    var val = parts.slice(1).join(':').trim();
-                    var isTotal = label.toUpperCase().includes('TOTAL');
-                    html += '<div style="' + (isTotal ? 'font-weight:700;color:#059669;border-top:1px solid var(--border);padding-top:4px;' : '') + '">' + label + '</div>';
-                    html += '<div style="text-align:right;' + (isTotal ? 'font-weight:700;color:#059669;font-size:14px;' : '') + '">' + val + '</div>';
-                }
-            });
-            html += '</div></div>';
-        }
-    }
-    html += '</div>';
-
-    // Rejection reason if rejected
-    if (ds === 'Rejected' && so.designRejectedReason) {
-        html += '<div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:14px;margin-bottom:12px;">';
-        html += '<h4 style="margin:0 0 10px;font-size:13px;color:#dc2626;">❌ Rejection Reason</h4>';
-        html += '<div style="font-size:13px;">' + so.designRejectedReason + '</div></div>';
-    }
-
-    // Design Notes (added by design dept)
-    if (so.designNotes) {
-        html += '<div style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:14px;margin-bottom:12px;">';
-        html += '<h4 style="margin:0 0 10px;font-size:13px;color:#2563eb;">📝 Design Department Notes</h4>';
-        html += '<div style="font-size:13px;line-height:1.6;white-space:pre-wrap;">' + so.designNotes + '</div></div>';
-    }
-
-    // Modified Items (design changes)
-    if (so.designModifiedItems && so.designModifiedItems.length) {
-        html += '<div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:14px;margin-bottom:12px;">';
-        html += '<h4 style="margin:0 0 10px;font-size:13px;color:#d97706;">✏️ Modified Items</h4>';
-        html += '<table style="width:100%;font-size:12px;border-collapse:collapse;">';
-        html += '<tr style="background:rgba(245,158,11,0.1);"><th style="padding:6px;text-align:left;">Item</th><th style="padding:6px;text-align:left;">Original</th><th style="padding:6px;text-align:left;">Modified To</th></tr>';
-        so.designModifiedItems.forEach(function(m) {
-            html += '<tr><td style="padding:6px;border-top:1px solid var(--border);font-weight:600;">' + (m.item || '—') + '</td>';
-            html += '<td style="padding:6px;border-top:1px solid var(--border);color:var(--text-muted);">' + (m.original || '—') + '</td>';
-            html += '<td style="padding:6px;border-top:1px solid var(--border);color:#059669;font-weight:600;">' + (m.modified || '—') + '</td></tr>';
-        });
-        html += '</table></div>';
-    }
-
-    // Design Notes Input (editable when Under Review or Submitted)
-    if (ds === 'Under Review' || ds === 'Submitted') {
-        html += '<div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.2);border-radius:8px;padding:14px;margin-bottom:12px;">';
-        html += '<h4 style="margin:0 0 10px;font-size:13px;color:#4f46e5;">✏️ Add Design Notes / Modifications</h4>';
-        html += '<textarea id="designNotesInput" class="form-control" rows="3" placeholder="Add design notes, modifications, special instructions..." style="font-size:12px;">' + (so.designNotes || '') + '</textarea>';
-        html += '<div style="margin-top:10px;"><div style="font-size:12px;font-weight:600;margin-bottom:6px;">Modified Items (optional):</div>';
-        html += '<div id="designModifiedItemsList">';
-        if (so.designModifiedItems && so.designModifiedItems.length) {
-            so.designModifiedItems.forEach(function(m, idx) {
-                html += '<div style="display:flex;gap:6px;margin-bottom:4px;align-items:center;">';
-                html += '<input type="text" class="form-control design-mod-item" placeholder="Item" value="' + (m.item || '') + '" style="flex:1;font-size:11px;">';
-                html += '<input type="text" class="form-control design-mod-original" placeholder="Original" value="' + (m.original || '') + '" style="flex:1;font-size:11px;">';
-                html += '<input type="text" class="form-control design-mod-modified" placeholder="Modified to" value="' + (m.modified || '') + '" style="flex:1;font-size:11px;">';
-                html += '<button class="btn btn-xs btn-ghost" style="color:#dc2626;" onclick="this.closest(\'div\').remove()">✕</button>';
-                html += '</div>';
-            });
-        }
-        html += '</div>';
-        html += '<button class="btn btn-xs btn-outline" onclick="addDesignModItem()" style="margin-top:4px;">+ Add Modified Item</button>';
-        html += '</div></div>';
-    }
-
-    // DOSH Design Workflow
-    var dwf = so.designWorkFlow || [
-        {status:'pending', date:'', reference:''},
-        {status:'pending', date:'', reference:''},
-        {status:'pending', date:'', reference:''},
-        {status:'pending', date:'', reference:''}
-    ];
-    var dwfSteps = [
-        '01 — Draft &amp; Create Technical Drawing with Design Calculation — Get Client Approval',
-        '02 — Submission Detail Design to DOSH — Until Getting Approval',
-        '03 — Design Approval from DOSH',
-        '04 — Issue Approved for Construction (AFC) Drawing'
-    ];
-    var dwfAllDone = dwf.every(function(s){return s.status==='completed';});
-    html += '<div style="margin-top:16px;border:1px solid var(--border);border-radius:var(--radius);padding:12px;background:var(--bg);">';
-    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
-    html += '<h4 style="margin:0;font-size:13px;color:#2563eb;">📐 DOSH Design Work Flow</h4>';
-    html += '<span id="doshFlowBadge" style="font-size:11px;padding:3px 10px;border-radius:12px;font-weight:600;background:'+(dwfAllDone?'rgba(16,185,129,0.15)':'#f3f4f6')+';color:'+(dwfAllDone?'#34d399':'#374151')+';">'+(dwfAllDone?'✅ All Completed':'⏳ In Progress')+'</span>';
-    html += '</div>';
-    html += '<p style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;">Design must be approved by DOSH before Work Order can be issued.</p>';
-    html += '<table style="width:100%;font-size:11px;border-collapse:collapse;">';
-    html += '<thead><tr style="background:#f1f5f9;"><th style="padding:4px 6px;border:1px solid var(--border);">#</th><th style="padding:4px 6px;border:1px solid var(--border);">Work Flow Step</th><th style="padding:4px 6px;border:1px solid var(--border);width:85px;">Status</th><th style="padding:4px 6px;border:1px solid var(--border);width:100px;">Date</th><th style="padding:4px 6px;border:1px solid var(--border);width:120px;">Reference</th></tr></thead>';
-    html += '<tbody>';
-    for(var dwi=0;dwi<4;dwi++){
-        var d=dwf[dwi];
-        html += '<tr>';
-        html += '<td style="padding:3px 6px;border:1px solid var(--border);text-align:center;font-weight:600;">0'+(dwi+1)+'</td>';
-        html += '<td style="padding:3px 6px;border:1px solid var(--border);">'+dwfSteps[dwi]+'</td>';
-        html += '<td style="padding:3px 6px;border:1px solid var(--border);"><select class="form-control" style="font-size:11px;padding:2px 4px;" data-dwf-idx="'+dwi+'" onchange="saveDoshWorkFlow(\''+so.id+'\')"><option value="pending" '+(d.status==='pending'?'selected':'')+'>⏳ Pending</option><option value="in-progress" '+(d.status==='in-progress'?'selected':'')+'>🔄 In Progress</option><option value="completed" '+(d.status==='completed'?'selected':'')+'>✅ Completed</option></select></td>';
-        html += '<td style="padding:3px 6px;border:1px solid var(--border);"><input type="date" class="form-control" style="font-size:11px;padding:2px 4px;" value="'+(d.date||'')+'" data-dwf-idx="'+dwi+'" onchange="saveDoshWorkFlow(\''+so.id+'\')"></td>';
-        html += '<td style="padding:3px 6px;border:1px solid var(--border);"><input type="text" class="form-control" style="font-size:11px;padding:2px 4px;" placeholder="Ref / remarks" value="'+escHtml(d.reference||'')+'" data-dwf-idx="'+dwi+'" onchange="saveDoshWorkFlow(\''+so.id+'\')"></td>';
-        html += '</tr>';
-    }
-    html += '</tbody></table></div>';
-
-    // Action buttons
-    html += '<div style="display:flex;gap:8px;justify-content:space-between;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">';
-    html += '<div><button class="btn btn-ghost" onclick="closeModal(\'designReviewDetailModal\')">Close</button></div>';
-    html += '<div style="display:flex;gap:8px;">';
-    html += '<button class="btn btn-secondary" onclick="printSalesOrderPDF(\'' + so.id + '\');closeModal(\'designReviewDetailModal\')">🖨️ Print PDF</button>';
-    if (ds === 'Under Review' || ds === 'Submitted') {
-        html += '<button class="btn btn-danger" onclick="saveDesignNotesAndReject(\'' + so.id + '\')">❌ Reject</button>';
-        html += '<button class="btn btn-success" onclick="saveDesignNotesAndApprove(\'' + so.id + '\')">' + (ds === 'Under Review' ? '📤 Submit Review' : '✅ Approve & Create WO') + '</button>';
-    }
-    html += '</div></div>';
-
-    html += '</div>';
-
-    // Create and show modal
-    var modal = document.getElementById('designReviewDetailModal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'designReviewDetailModal';
-        modal.className = 'modal-overlay';
-        modal.onclick = function(e) { if (e.target === modal) closeModal('designReviewDetailModal'); };
-        modal.innerHTML = '<div class="modal" style="max-width:800px;"><div class="modal-header"><h3>📐 Design Review — ' + so.id + '</h3><button class="modal-close" onclick="closeModal(\'designReviewDetailModal\')">×</button></div><div class="modal-body" id="designReviewDetailBody"></div></div>';
-        document.body.appendChild(modal);
-    }
-    document.getElementById('designReviewDetailBody').innerHTML = html;
-    modal.style.display = 'flex';
-    modal.classList.add('active');
-}
-
-function saveDoshWorkFlow(soId){
-    var so=DB.getById('salesOrders',soId);
-    if(!so)return;
-    var badge=document.getElementById('doshFlowBadge');
-    var rows=document.querySelectorAll('#designReviewDetailBody table tbody tr');
-    var dwf=[];
-    var allDone=true;
-    rows.forEach(function(tr){
-        var sel=tr.querySelector('select');
-        var inputs=tr.querySelectorAll('input');
-        var status=sel?sel.value:'pending';
-        var date=inputs[0]?inputs[0].value:'';
-        var ref=inputs[1]?inputs[1].value:'';
-        dwf.push({status:status,date:date,reference:ref});
-        if(status!=='completed')allDone=false;
-    });
-    so.designWorkFlow=dwf;
-    DB.update('salesOrders',soId,so);
-    if(badge){
-        badge.textContent=allDone?'✅ All Completed':'⏳ In Progress';
-        badge.style.cssText='font-size:11px;padding:3px 10px;border-radius:12px;font-weight:600;background:'+(allDone?'rgba(16,185,129,0.15)':'#f3f4f6')+';color:'+(allDone?'#34d399':'#374151')+';';
-    }
-}
-
-function addDesignModItem() {
-    var list = document.getElementById('designModifiedItemsList');
-    if (!list) return;
-    var div = document.createElement('div');
-    div.style.cssText = 'display:flex;gap:6px;margin-bottom:4px;align-items:center;';
-    div.innerHTML = '<input type="text" class="form-control design-mod-item" placeholder="Item" style="flex:1;font-size:11px;">' +
-        '<input type="text" class="form-control design-mod-original" placeholder="Original" style="flex:1;font-size:11px;">' +
-        '<input type="text" class="form-control design-mod-modified" placeholder="Modified to" style="flex:1;font-size:11px;">' +
-        '<button class="btn btn-xs btn-ghost" style="color:#dc2626;" onclick="this.closest(\'div\').remove()">✕</button>';
-    list.appendChild(div);
-}
 
         function openDesignDetail(woId) {
             _currentMarWoId = woId;
