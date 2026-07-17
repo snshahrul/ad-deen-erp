@@ -10220,44 +10220,21 @@ function openDesignJobModal(woId){
                 });
             }
             if(wo.fabInstructions) document.getElementById('djFabInstructions').value=wo.fabInstructions;
-            // Also try to populate from linked sales order
-            var so=wo.salesId?DB.getById('salesOrders',wo.salesId):wo.woRef?DB.getById('salesOrders',wo.woRef):null;
-            if(so&&so.peMaterials){
-                var pe=so.peMaterials;
+            // Populate from linked quotation items
+            var qtItems = wo.items || [];
+            if(!qtItems.length && wo.quotationId) {
+                var qt = DB.getById('quotations', wo.quotationId, 'id');
+                if(qt && qt.items) qtItems = qt.items;
+            }
+            if(!qtItems.length && wo.poId) {
+                var po = DB.getById('clientPOs', wo.poId, 'id');
+                if(po && po.items) qtItems = po.items;
+            }
+            if(qtItems.length) {
                 // Only populate if material lists are empty (no saved fabMaterials)
-                if(!mats.shell||mats.shell.length===0){
-                    if(pe.shellSpec){addDesignMatRow('djShellList',pe.shellSpec,pe.shellQty||1);}
-                }
-                if(!mats.head||mats.head.length===0){
-                    if(pe.headSpec){addDesignMatRow('djHeadList',pe.headSpec+' ('+(pe.headType||'')+')',pe.headQty||1);}
-                }
-                if(!mats.nozzle||mats.nozzle.length===0){
-                    if(pe.nozzleList){
-                        pe.nozzleList.forEach(function(n){
-                            if(n&&(n.s||n.sp))addDesignMatRow('djNozzleList',(n.s||'')+' '+(n.sp||''),n.q||1);
-                        });
-                    }
-                }
-                if(!mats.flange||mats.flange.length===0){
-                    if(pe.flangeList){
-                        pe.flangeList.forEach(function(f){
-                            if(f&&(f.s||f.sp))addDesignMatRow('djFlangeList',(f.s||'')+' '+(f.sp||''),f.q||1);
-                        });
-                    }
-                }
-                if(!mats.saddle||mats.saddle.length===0){
-                    if(pe.saddleSpec){addDesignMatRow('djSaddleList',pe.saddleSpec,pe.saddleQty||1);}
-                }
-                if(!mats.otherMat||mats.otherMat.length===0){
-                    if(pe.otherName||pe.otherSpec){
-                        addDesignMatRow('djOtherMatList',(pe.otherName||'')+' '+(pe.otherSpec||''),pe.otherQty||1);
-                    }
-                    if(pe.otherList){
-                        pe.otherList.forEach(function(o){
-                            if(o&&(o[0]||o[1]))addDesignMatRow('djOtherMatList',(o[0]||'')+' '+(o[1]||''),o[2]||1);
-                        });
-                    }
-                }
+                qtItems.forEach(function(item) {
+                    addDesignMatRow('djShellList', item.description || '', item.qty || 1);
+                });
             }
         }
     }else{setDesignJobType('fab');}
