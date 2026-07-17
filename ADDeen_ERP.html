@@ -2226,23 +2226,72 @@ document.addEventListener('click', function(event) {
                     </div>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Link to Quotation (optional)</label>
+                    <label class="form-label">Link to Quotation</label>
                     <select class="form-control" id="cpoQuotation" onchange="onCpoQuotationChange()">
                         <option value="">-- Select Quotation --</option>
                     </select>
                 </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Contact Person</label>
+                        <input type="text" class="form-control" id="cpoContact" placeholder="Contact name">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" id="cpoEmail" placeholder="email@example.com">
+                    </div>
+                </div>
                 <div class="form-group">
-                    <label class="form-label">Description</label>
+                    <label class="form-label">Phone</label>
+                    <input type="text" class="form-control" id="cpoPhone" placeholder="Phone number">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description / Scope of Work</label>
                     <textarea class="form-control" id="cpoDescription" rows="3" placeholder="Scope of work / items"></textarea>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Status</label>
-                    <select class="form-control" id="cpoStatus">
-                        <option value="Pending">Pending</option>
-                        <option value="Approved">Approved</option>
-                        <option value="Converted">Converted</option>
-                        <option value="Cancelled">Cancelled</option>
-                    </select>
+                    <label class="form-label">Quotation Items</label>
+                    <table class="table" style="font-size:12px;" id="cpoItemsTable">
+                        <thead>
+                            <tr><th>#</th><th>Description</th><th>Qty</th><th>Unit Price (RM)</th><th>Total</th></tr>
+                        </thead>
+                        <tbody id="cpoItemsBody">
+                            <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:12px;">Select a quotation to load items</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Subtotal (RM)</label>
+                        <input type="text" class="form-control" id="cpoSubtotal" readonly style="background:var(--bg-secondary);">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Tax (%)</label>
+                        <input type="text" class="form-control" id="cpoTaxPercent" readonly style="background:var(--bg-secondary);">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Grand Total (RM)</label>
+                        <input type="text" class="form-control" id="cpoGrandTotal" readonly style="background:var(--bg-secondary);font-weight:700;">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes / Terms</label>
+                    <textarea class="form-control" id="cpoNotes" rows="2" placeholder="Payment terms, delivery terms..."></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Valid Until</label>
+                        <input type="date" class="form-control" id="cpoValidUntil">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Status</label>
+                        <select class="form-control" id="cpoStatus">
+                            <option value="Pending">Pending</option>
+                            <option value="Approved">Approved</option>
+                            <option value="Converted">Converted</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </select>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -2254,7 +2303,7 @@ document.addEventListener('click', function(event) {
 
     <!-- ===================== NEW WORK ORDER FROM PO ===================== -->
     <div class="modal-overlay" id="newWorkOrderModal">
-        <div class="modal" style="max-width:700px;">
+        <div class="modal" style="max-width:750px;">
             <div class="modal-header">
                 <h3>📋 NEW WORK ORDER</h3>
                 <button class="modal-close" onclick="closeModal('newWorkOrderModal')">×</button>
@@ -2292,6 +2341,17 @@ document.addEventListener('click', function(event) {
                 <div class="form-group">
                     <label class="form-label">Description / Scope of Work</label>
                     <textarea class="form-control" id="nwoDescription" rows="3" placeholder="Describe the scope of work..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Items from Quotation</label>
+                    <table class="table" style="font-size:12px;" id="nwoItemsTable">
+                        <thead>
+                            <tr><th>#</th><th>Description</th><th>Qty</th><th>Unit Price (RM)</th><th>Total</th></tr>
+                        </thead>
+                        <tbody id="nwoItemsBody">
+                            <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:12px;">No items</td></tr>
+                        </tbody>
+                    </table>
                 </div>
                 <div class="form-row">
                     <div class="form-group">

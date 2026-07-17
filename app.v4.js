@@ -4854,7 +4854,7 @@ window.addEventListener('DOMContentLoaded', function() {
             }
             if(!matItems.length){showToast('No material items found in Work Order','error');return;}
             var prId=DB.genId('purchaseRequisitions');
-            var pr={id:prId,woRef:job.id,salesRef:so.id,custName:so.custName||job.custName||job.client||'',productName:so.productName||job.productName||job.equipment||'',items:matItems,status:'Approved',approvedBy:'Design Dept',approvedAt:new Date().toISOString(),createdAt:new Date().toISOString()};
+            var pr={id:prId,woRef:job.id,sourceWoRef:so.id,custName:so.custName||job.custName||job.client||'',productName:so.productName||job.productName||job.equipment||'',items:matItems,status:'Approved',approvedBy:'Design Dept',approvedAt:new Date().toISOString(),createdAt:new Date().toISOString()};
             saveWithOwner('purchaseRequisitions',pr);
             // Update WO
             job.prRef=prId;
@@ -6618,7 +6618,7 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
             }
             tbody.innerHTML = pos.sort(function(a, b) { return (b.createdAt || '').localeCompare(a.createdAt || ''); }).map(function(p) {
                 var statusClass = (p.status || 'Pending').toLowerCase().replace(/\s+/g, '-');
-                var soLink = p.salesOrderId ? '<a href="#" onclick="navigateTo(\'job-management\');return false;" style="color:var(--secondary);">' + p.salesOrderId + '</a>' : '<span style="color:var(--text-muted);font-size:11px;">—</span>';
+                var soLink = p.woId ? '<a href="#" onclick="navigateTo(\'job-management\');return false;" style="color:var(--secondary);">' + p.woId + '</a>' : '<span style="color:var(--text-muted);font-size:11px;">—</span>';
                 var actions = '<div class="btn-group">';
                 if (p.status !== 'Converted' && p.status !== 'Cancelled') {
                     actions += '<button class="btn btn-xs btn-info" onclick="openNewWorkOrderFromPO(\'' + p.id + '\')">→ WO</button>';
@@ -6645,7 +6645,17 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
             document.getElementById('cpoDate').value = new Date().toISOString().split('T')[0];
             document.getElementById('cpoAmount').value = '';
             document.getElementById('cpoDescription').value = '';
+            document.getElementById('cpoContact').value = '';
+            document.getElementById('cpoEmail').value = '';
+            document.getElementById('cpoPhone').value = '';
+            document.getElementById('cpoSubtotal').value = '';
+            document.getElementById('cpoTaxPercent').value = '';
+            document.getElementById('cpoGrandTotal').value = '';
+            document.getElementById('cpoNotes').value = '';
+            document.getElementById('cpoValidUntil').value = '';
             document.getElementById('cpoStatus').value = 'Pending';
+            var itemsBody = document.getElementById('cpoItemsBody');
+            if (itemsBody) itemsBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:12px;">Select a quotation to load items</td></tr>';
             var sel = document.getElementById('cpoClient');
             sel.innerHTML = '<option value="">-- Select Client --</option>';
             DB.get('customers').forEach(function(c) {
@@ -6674,6 +6684,16 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
                     qtSel.innerHTML += '<option value="' + q.id + '">' + escHtml(label) + '</option>';
                 });
             }
+            // Auto-fill contact/email/phone from customer record
+            var customer = DB.get('customers').find(function(c) { return (c.company || c.name) === clientName; });
+            if (customer) {
+                var contactEl = document.getElementById('cpoContact');
+                var emailEl = document.getElementById('cpoEmail');
+                var phoneEl = document.getElementById('cpoPhone');
+                if (contactEl && customer.name) contactEl.value = customer.name;
+                if (emailEl && customer.email) emailEl.value = customer.email;
+                if (phoneEl && customer.phone) phoneEl.value = customer.phone;
+            }
             // Also auto-fill from latest accepted quotation
             var qts = DB.get('quotations').filter(function(q) {
                 return q.customer === clientName && q.status === 'Accepted';
@@ -6685,7 +6705,8 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
                 if (descEl) descEl.value = qt.subject || qt.description || '';
                 if (amountEl && qt.total) amountEl.value = qt.total;
                 if (qtSel) qtSel.value = qt.id;
-                showToast('Auto-filled from quotation ' + qt.id, 'info');
+                // Trigger quotation change to fill all fields
+                onCpoQuotationChange();
             }
         }
 
@@ -6694,13 +6715,51 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
             if (!qtSel || !qtSel.value) return;
             var qt = DB.getById('quotations', qtSel.value, 'id');
             if (!qt) return;
+
+            // Fill basic fields
             var descEl = document.getElementById('cpoDescription');
             var amountEl = document.getElementById('cpoAmount');
             var dateEl = document.getElementById('cpoDate');
-            if (descEl) descEl.value = qt.subject || qt.description || '';
+            var contactEl = document.getElementById('cpoContact');
+            var emailEl = document.getElementById('cpoEmail');
+            var phoneEl = document.getElementById('cpoPhone');
+            var notesEl = document.getElementById('cpoNotes');
+            var validEl = document.getElementById('cpoValidUntil');
+            var subtotalEl = document.getElementById('cpoSubtotal');
+            var taxEl = document.getElementById('cpoTaxPercent');
+            var grandEl = document.getElementById('cpoGrandTotal');
+
+            if (descEl) descEl.value = qt.description || qt.subject || '';
             if (amountEl && qt.total) amountEl.value = qt.total;
             if (dateEl && qt.date) dateEl.value = qt.date;
-            showToast('Auto-filled from quotation ' + qt.id, 'info');
+            if (contactEl && qt.contact) contactEl.value = qt.contact;
+            if (emailEl && qt.email) emailEl.value = qt.email;
+            if (phoneEl && qt.phone) phoneEl.value = qt.phone;
+            if (notesEl && qt.notes) notesEl.value = qt.notes;
+            if (validEl && qt.validUntil) validEl.value = qt.validUntil;
+            if (subtotalEl && qt.subtotal != null) subtotalEl.value = 'RM ' + parseFloat(qt.subtotal).toLocaleString();
+            if (taxEl && qt.taxPercent != null) taxEl.value = qt.taxPercent + '%';
+            if (grandEl && qt.total != null) grandEl.value = 'RM ' + parseFloat(qt.total).toLocaleString();
+
+            // Fill items table
+            var itemsBody = document.getElementById('cpoItemsBody');
+            if (itemsBody && qt.items && qt.items.length) {
+                itemsBody.innerHTML = '';
+                qt.items.forEach(function(item, idx) {
+                    var lineTotal = (item.qty || 0) * (item.unitPrice || 0);
+                    var tr = document.createElement('tr');
+                    tr.innerHTML = '<td>' + (idx + 1) + '</td>' +
+                        '<td>' + escHtml(item.description || '') + '</td>' +
+                        '<td>' + (item.qty || 0) + '</td>' +
+                        '<td>RM ' + (item.unitPrice || 0).toLocaleString(undefined, {minimumFractionDigits: 2}) + '</td>' +
+                        '<td style="font-weight:600;">RM ' + lineTotal.toLocaleString(undefined, {minimumFractionDigits: 2}) + '</td>';
+                    itemsBody.appendChild(tr);
+                });
+            } else if (itemsBody) {
+                itemsBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:12px;">No items in this quotation</td></tr>';
+            }
+
+            showToast('All data transferred from quotation ' + qt.id, 'info');
         }
 
         // ==================== NEW WORK ORDER FROM PO ====================
@@ -6740,7 +6799,7 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
             // Populate PO reference and quotation reference
             document.getElementById('nwoPONumber').value = po.poNumber || '';
 
-            // Look up linked quotation for product name and description
+            // Look up linked quotation for all data
             if (po.quotationId) {
                 var qt = DB.getById('quotations', po.quotationId, 'id');
                 if (qt) {
@@ -6758,8 +6817,27 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
                 document.getElementById('nwoQuotationRef').value = '—';
             }
 
-            // Auto-fill contact from customer
-            onNwoClientChange();
+            // Transfer items from PO
+            var itemsBody = document.getElementById('nwoItemsBody');
+            if (itemsBody && po.items && po.items.length) {
+                itemsBody.innerHTML = '';
+                po.items.forEach(function(item, idx) {
+                    var lineTotal = (item.qty || 0) * (item.unitPrice || 0);
+                    var tr = document.createElement('tr');
+                    tr.innerHTML = '<td>' + (idx + 1) + '</td>' +
+                        '<td>' + escHtml(item.description || '') + '</td>' +
+                        '<td>' + (item.qty || 0) + '</td>' +
+                        '<td>RM ' + (item.unitPrice || 0).toLocaleString(undefined, {minimumFractionDigits: 2}) + '</td>' +
+                        '<td style="font-weight:600;">RM ' + lineTotal.toLocaleString(undefined, {minimumFractionDigits: 2}) + '</td>';
+                    itemsBody.appendChild(tr);
+                });
+            } else if (itemsBody) {
+                itemsBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:12px;">No items from PO</td></tr>';
+            }
+
+            // Auto-fill contact from PO data
+            var contactEl = document.getElementById('nwoContact');
+            if (contactEl && po.contact) contactEl.value = po.contact;
 
             modal.style.display = 'flex';
             modal.classList.add('active');
@@ -6796,6 +6874,22 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
                 return;
             }
 
+            // Collect items from table
+            var items = [];
+            var itemsBody = document.getElementById('nwoItemsBody');
+            if (itemsBody) {
+                itemsBody.querySelectorAll('tr').forEach(function(tr) {
+                    var cells = tr.querySelectorAll('td');
+                    if (cells.length >= 4) {
+                        var desc = cells[1].textContent.trim();
+                        var qty = parseFloat(cells[2].textContent.trim()) || 0;
+                        var priceText = cells[3].textContent.trim().replace('RM ', '').replace(/,/g, '');
+                        var price = parseFloat(priceText) || 0;
+                        if (desc) items.push({ description: desc, qty: qty, unitPrice: price });
+                    }
+                });
+            }
+
             var woId = 'WO-' + new Date().getFullYear() + '-' + String(DB.get('workOrders').length + 1).padStart(6, '0');
             var wo = {
                 id: woId,
@@ -6816,7 +6910,8 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
                 poId: poId,
                 quotationId: quotationId,
                 workCategory: type === 'repair' ? 'repair' : 'new-fab',
-                branch: ''
+                branch: '',
+                items: items
             };
 
             saveWithOwner('workOrders', wo);
@@ -6839,7 +6934,7 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
                 var po = DB.getById('clientPOs', poId, 'id');
                 if (po) {
                     po.status = 'Converted';
-                    po.salesOrderId = woId;
+                    po.woId = woId;
                     saveWithOwner('clientPOs', po);
                 }
             }
@@ -6858,13 +6953,21 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
             document.getElementById('cpoDate').value = p.date || '';
             document.getElementById('cpoAmount').value = p.amount || '';
             document.getElementById('cpoDescription').value = p.description || '';
+            document.getElementById('cpoContact').value = p.contact || '';
+            document.getElementById('cpoEmail').value = p.email || '';
+            document.getElementById('cpoPhone').value = p.phone || '';
+            document.getElementById('cpoNotes').value = p.notes || '';
+            document.getElementById('cpoValidUntil').value = p.validUntil || '';
             document.getElementById('cpoStatus').value = p.status || 'Pending';
+
+            // Populate client dropdown
             var sel = document.getElementById('cpoClient');
             sel.innerHTML = '<option value="">-- Select Client --</option>';
             DB.get('customers').forEach(function(c) {
                 sel.innerHTML += '<option value="' + escHtml(c.company || c.name) + '">' + escHtml(c.company || c.name) + ' — ' + escHtml(c.name) + '</option>';
             });
             sel.value = p.client || '';
+
             // Populate quotation dropdown
             var qtSel = document.getElementById('cpoQuotation');
             if (qtSel) {
@@ -6882,6 +6985,42 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
                 }
                 qtSel.value = p.quotationId || '';
             }
+
+            // Restore items table
+            var itemsBody = document.getElementById('cpoItemsBody');
+            if (itemsBody && p.items && p.items.length) {
+                itemsBody.innerHTML = '';
+                p.items.forEach(function(item, idx) {
+                    var lineTotal = (item.qty || 0) * (item.unitPrice || 0);
+                    var tr = document.createElement('tr');
+                    tr.innerHTML = '<td>' + (idx + 1) + '</td>' +
+                        '<td>' + escHtml(item.description || '') + '</td>' +
+                        '<td>' + (item.qty || 0) + '</td>' +
+                        '<td>RM ' + (item.unitPrice || 0).toLocaleString(undefined, {minimumFractionDigits: 2}) + '</td>' +
+                        '<td style="font-weight:600;">RM ' + lineTotal.toLocaleString(undefined, {minimumFractionDigits: 2}) + '</td>';
+                    itemsBody.appendChild(tr);
+                });
+            } else if (itemsBody) {
+                itemsBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:12px;">No items</td></tr>';
+            }
+
+            // Restore totals
+            var subtotalEl = document.getElementById('cpoSubtotal');
+            var taxEl = document.getElementById('cpoTaxPercent');
+            var grandEl = document.getElementById('cpoGrandTotal');
+            if (p.quotationId) {
+                var qt = DB.getById('quotations', p.quotationId, 'id');
+                if (qt) {
+                    if (subtotalEl && qt.subtotal != null) subtotalEl.value = 'RM ' + parseFloat(qt.subtotal).toLocaleString();
+                    if (taxEl && qt.taxPercent != null) taxEl.value = qt.taxPercent + '%';
+                    if (grandEl && qt.total != null) grandEl.value = 'RM ' + parseFloat(qt.total).toLocaleString();
+                }
+            } else {
+                if (subtotalEl) subtotalEl.value = '';
+                if (taxEl) taxEl.value = '';
+                if (grandEl) grandEl.value = p.amount ? 'RM ' + parseFloat(p.amount).toLocaleString() : '';
+            }
+
             document.getElementById('clientPOModal').style.display = 'flex';
             document.getElementById('clientPOModal').classList.add('active');
         }
@@ -6895,10 +7034,31 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
             var description = document.getElementById('cpoDescription').value.trim();
             var status = document.getElementById('cpoStatus').value;
             var quotationId = document.getElementById('cpoQuotation').value || '';
+            var contact = document.getElementById('cpoContact').value.trim();
+            var email = document.getElementById('cpoEmail').value.trim();
+            var phone = document.getElementById('cpoPhone').value.trim();
+            var notes = document.getElementById('cpoNotes').value.trim();
+            var validUntil = document.getElementById('cpoValidUntil').value;
 
             if (!poNumber || !client) {
                 showToast('PO number and client are required', 'error');
                 return;
+            }
+
+            // Collect items from table
+            var items = [];
+            var itemsBody = document.getElementById('cpoItemsBody');
+            if (itemsBody) {
+                itemsBody.querySelectorAll('tr').forEach(function(tr) {
+                    var cells = tr.querySelectorAll('td');
+                    if (cells.length >= 4) {
+                        var desc = cells[1].textContent.trim();
+                        var qty = parseFloat(cells[2].textContent.trim()) || 0;
+                        var priceText = cells[3].textContent.trim().replace('RM ', '').replace(/,/g, '');
+                        var price = parseFloat(priceText) || 0;
+                        if (desc) items.push({ description: desc, qty: qty, unitPrice: price });
+                    }
+                });
             }
 
             var data = {
@@ -6908,13 +7068,19 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
                 amount: amount ? parseFloat(amount) : 0,
                 description: description,
                 status: status,
-                quotationId: quotationId
+                quotationId: quotationId,
+                contact: contact,
+                email: email,
+                phone: phone,
+                notes: notes,
+                validUntil: validUntil,
+                items: items
             };
 
             if (editId) {
                 var existing = DB.getById('clientPOs', editId, 'id');
                 if (existing) {
-                    data.salesOrderId = existing.salesOrderId || '';
+                    data.woId = existing.woId || '';
                     data.createdAt = existing.createdAt;
                     data.id = editId;
                     saveWithOwner('clientPOs', data);
@@ -6924,7 +7090,7 @@ return (Auth.getUser && Auth.getUser()) || { username: 'admin', name: 'Administr
                 var count = DB.get('clientPOs').length;
                 data.id = 'CPO-' + String(count + 1).padStart(4, '0');
                 data.createdAt = new Date().toISOString();
-                data.salesOrderId = '';
+                data.woId = '';
                 saveWithOwner('clientPOs', data);
                 showToast('P.O saved', 'success');
             }
